@@ -4,9 +4,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CommonTypes
+namespace SESDAD
 {
     public class Class1
     {
+
+    }
+
+    public interface BrokerInterface
+    {
+
+    }
+    public interface PublisherInterface
+    {
+
+    }
+    public interface SubscriberInterface
+    {
+
     }
 }
