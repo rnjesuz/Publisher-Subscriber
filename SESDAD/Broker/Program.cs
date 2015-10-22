@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Runtime.Remoting;
+using System.Runtime.Remoting.Channels;
+using System.Runtime.Remoting.Channels.Tcp;
 
 namespace SESDAD
 {
@@ -17,6 +20,14 @@ namespace SESDAD
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
+
+            TcpChannel channel = new TcpChannel(8086);
+            ChannelServices.RegisterChannel(channel, false);
+
+            RemotingConfiguration.RegisterWellKnownServiceType(
+                typeof(RemoteServer),
+                "ChatServer",
+                WellKnownObjectMode.Singleton);
         }
     }
 
