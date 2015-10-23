@@ -48,6 +48,7 @@ namespace SESDAD
             SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
             subscribers.Add(newSubscriber, "root/");
+            System.Console.WriteLine("conectei");
         }
 
         public void AddSubscription(SubscriberInterface subscriber, string subscription)
@@ -55,6 +56,7 @@ namespace SESDAD
             if (subscribers.ContainsKey(subscriber))
             {
                 subscribers[subscriber] = subscription;
+                System.Console.WriteLine("subscrevi a:" + subscription);
             }
             else
             {
