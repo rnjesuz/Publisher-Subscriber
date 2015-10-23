@@ -15,10 +15,6 @@ namespace SESDAD
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
-
             TcpChannel channel = new TcpChannel(8086);
             ChannelServices.RegisterChannel(channel, false);
 
@@ -26,6 +22,12 @@ namespace SESDAD
                 typeof(RemoteBroker),
                 "BrokerServer",
                 WellKnownObjectMode.Singleton);
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Form1());
+
+            
         }
     }
 

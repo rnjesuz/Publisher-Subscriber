@@ -25,7 +25,8 @@ namespace SESDAD
     
     public interface PublisherInterface
     {
-
+        void ConnectBroker();
+        void ChangeTopic(string topic);
     }
     public interface SubscriberInterface
     {
