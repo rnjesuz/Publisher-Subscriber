@@ -18,9 +18,9 @@ namespace SESDAD
         void ConnectPublisher();
         void ChangePublishTopic(PublisherInterface publisher, string topic);
         void ConnectFatherBroker(int port);
-        void ReceivePublication(string publication);
-        void PropagatePublication(string publication);
-        void SendPublication(string publication);
+        void ReceivePublication(string publication, PublisherInterface publisher);
+        void PropagatePublication(string publication, PublisherInterface publisher);
+        void SendPublication(string publication, string topic);
     }
     
     public interface PublisherInterface
