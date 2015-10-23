@@ -94,21 +94,21 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, PublisherInterface publisher)
         {
-                PropagatePublication(publication, publishers[publisher]);
+                PropagatePublication(publication, publisher);
                 SendPublication(publication, publishers[publisher]);
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
-        public void PropagatePublication(string publication, string topic)
+        public void PropagatePublication(string publication, PublisherInterface publisher)
         {
             //check if Broker is tree root
             if(fatherBroker != null)
-                fatherBroker.ReceivePublication(publication);
+                fatherBroker.ReceivePublication(publication, publisher);
         }
 
         //method used to send the publication to one or several subscribers of the broker
-        //checks if any subscriber is intereted in the theme, and sends it to them if yes
+        //checks if any subscriber is intereted in the topic, and sends it to them if yes
         public void SendPublication(string publication, string publicationTopic)
         {
             //See if any subscriber is interested in this publication
