@@ -25,7 +25,8 @@ namespace SESDAD
 
         private void TopicButton_Click(object sender, EventArgs e)
         {
-            RP.ChangeTopic(TopicTextBox.Text);
+            string topic =TopicTextBox.Text;
+            RP.ChangeTopic(topic);
         }
 
         private void TopicTextBox_TextChanged(object sender, EventArgs e)
