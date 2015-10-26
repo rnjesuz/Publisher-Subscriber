@@ -12,7 +12,7 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    static class Subscriber
+    class Subscriber
     {
         /// <summary>
         /// The main entry point for the application.
@@ -22,35 +22,47 @@ namespace SESDAD
         internal static BrokerInterface broker;
         internal static Form1 form;
         internal static RemoteSubscriber rs;
+        internal static string myURL;
+        internal static string brokerURL;
+        internal static int myPort;
         [STAThread]
         static void Main()
         {
-            //hardcoded port to 8090
-            //TODO change port to be dynamic
+            //TODO remove after PuppetMaster is implemented
+            myURL = "tcp://localhost:8090/SubscriberServer";
+            //TODO remove after PuppetMaster is implemented
+            myPort = 8090;
 
-            TcpChannel channel = new TcpChannel(8090);
+            TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            broker = (BrokerInterface)Activator.GetObject(
-                typeof(BrokerInterface),
-                "tcp://localhost:8086/BrokerServer");
+            //TODO remove after PuppetMaster is implemented
+            brokerURL = "tcp://localhost:8086/BrokerServer";
 
-            rs = new RemoteSubscriber();
-            RemotingServices.Marshal(rs, "SubscriberServer", typeof(RemoteSubscriber));
+            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface),brokerURL);
+
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "SubscriberServer", WellKnownObjectMode.Singleton);
 
             try
             {
-                broker.ConnectSubscriber("localhost:8090");
+                broker.ConnectSubscriber(myURL);
             }
             catch (SocketException)
             {
-                System.Console.WriteLine("Could not locate server");
+                System.Console.WriteLine("Could not locate Broker");
             }
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             form = new Form1();
             Application.Run(form);
+        }
+
+        public Subscriber(string subURL, string brkURL, int subPort)
+        {
+            myURL = subURL;
+            brokerURL = brkURL;
+            myPort = subPort;
         }
     }
 
@@ -61,6 +73,7 @@ namespace SESDAD
     {
         public static Form1 form = Subscriber.form;
         private BrokerInterface broker = Subscriber.broker;
+        private string myURL = Subscriber.myURL;
 
         public void ReceivePublication(string publication)
         {
@@ -71,11 +84,11 @@ namespace SESDAD
         {
             try
             {
-                broker.AddSubscription("localhost:8090", topic);
+                broker.AddSubscription(myURL, topic);
             }
             catch (SocketException)
             {
-                System.Console.WriteLine("Could not locate server");
+                System.Console.WriteLine("Could not locate Broker");
             }
         }
     }

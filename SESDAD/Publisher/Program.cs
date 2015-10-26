@@ -10,38 +10,54 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    static class Publisher
+    class Publisher
     {
 
         internal static BrokerInterface broker;
+        internal static string brokerURL;
+        internal static string myURL;
+        internal static int myPort;
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
         static void Main()
         {
-            TcpChannel channel = new TcpChannel(8088);
+            //TODO remove after PuppetMaster is implemented
+            myURL = "tcp://localhost:8088/PublisherServer";
+            //TODO remove after PuppetMaster is implemented
+            myPort = 8088;
+
+            TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), "tcp://localhost:8086/BrokerServer");
+            //TODO remove after PuppetMaster is implemented
+            brokerURL = "tcp://localhost:8086/BrokerServer";
 
-            RemotingConfiguration.RegisterWellKnownServiceType(
-                typeof(RemotePublisher),
-                "PublisherServer",
-                WellKnownObjectMode.Singleton);
+            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
+
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"PublisherServer",WellKnownObjectMode.Singleton);
 
             try
             {
-                broker.ConnectPublisher("localhost:8088");
+                broker.ConnectPublisher(myURL);
             }
             catch (SocketException)
             {
-                System.Console.WriteLine("Could not locate server");
+                System.Console.WriteLine("Could not locate Broker");
             }
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
+        }
+
+        public Publisher(string pubURL, string brkURL, int pubPort)
+        {
+            myURL = pubURL;
+            brokerURL = brkURL;
+            myPort = pubPort;
         }
     }
 
@@ -49,10 +65,11 @@ namespace SESDAD
     {
 
         private BrokerInterface broker = Publisher.broker;
+        private string myURL = Publisher.myURL;
 
         public void ChangeTopic(string Topic)
         {
-            broker.ChangePublishTopic("localhost:8088", Topic);
+            broker.ChangePublishTopic(myURL, Topic);
         }
     }
 }

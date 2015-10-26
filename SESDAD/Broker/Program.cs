@@ -11,21 +11,21 @@ namespace SESDAD
 {
     static class Program
     {
+        internal static int myPort;
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
         static void Main()
         {
-            TcpChannel channel = new TcpChannel(8086);
+            //TODO remove when PuppetMaster is implemented
+            myPort = 8086;
+            TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            RemotingConfiguration.RegisterWellKnownServiceType(
-                typeof(RemoteBroker),
-                "BrokerServer",
-                WellKnownObjectMode.Singleton);
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),"BrokerServer",WellKnownObjectMode.Singleton);
 
-           Application.EnableVisualStyles();
+            Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
 
@@ -48,9 +48,10 @@ namespace SESDAD
         public void ConnectSubscriber(string subURL)
         {
             //SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
+            
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
             subscribers.Add(subURL, "root/");
-            System.Console.WriteLine("Subscriber at: "+subURL+ "connected");
+            System.Console.WriteLine("Subscriber at: "+subURL+ " connected");
         }
 
         public void AddSubscription(string subURL, string subscription)
@@ -58,12 +59,12 @@ namespace SESDAD
             if (subscribers.ContainsKey(subURL))
             {
                 subscribers[subURL] = subscription;
-                System.Console.WriteLine("subscrevi a:" + subscription);
+                System.Console.WriteLine(subURL+" subscibed to: " + subscription);
             }
             else
             {
                 //TODO trow an exception to the subscriber
-                Console.WriteLine("There is no such Subscriber Connected to this Broker");
+                Console.WriteLine("There is no such Subscriber connected to this Broker");
             }
         }
         
@@ -81,7 +82,7 @@ namespace SESDAD
             if (publishers.ContainsKey(pubURL))
             {
                 publishers[pubURL] = topic;
-                Console.WriteLine("Publishing to: " + topic);
+                Console.WriteLine(pubURL+" publishing to: " + topic);
             }
             else
             {
@@ -124,7 +125,7 @@ namespace SESDAD
             {
                 if (subscribers[subscriber].Equals(publicationTopic))
                 {
-                    SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
+                    SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
                     newSubscriber.ReceivePublication(publication);
                 }
             }

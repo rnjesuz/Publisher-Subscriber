@@ -16,7 +16,7 @@ namespace SESDAD
 {
     public partial class Form1 : Form
     {
-        RemoteSubscriber rs = Subscriber.rs;
+        private RemoteSubscriber rs = new RemoteSubscriber();
         string topic;
 
         public Form1()
