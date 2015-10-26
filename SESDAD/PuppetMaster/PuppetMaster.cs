@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
+using System.Reflection;
 
 namespace PuppetMaster
 {
@@ -19,13 +21,41 @@ namespace PuppetMaster
             int numberofevents;
             int sleepInterval;
 
+            //HashTable withe the sites and it's parents <site,parent>
+            Dictionary<string, string> siteTree = new Dictionary<string, string>();
+
+            //HashTable withe the brokers and it's URL. <brokers, URL>
+            Dictionary<string, string> brokerTable = new Dictionary<string, string>();
+
             //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
             int Loglevel = 0;
             int eventNumber = 0;
 
             //read all lines from the config file. split ea line into an array
-            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Public\TestFolder\WriteLines2.txt");
-    
+            //string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Public\TestFolder\WriteLines2.txt");
+            string configPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ConfigFile.txt");
+            string[] lines = System.IO.File.ReadAllLines(configPath);
+            string[] parsedLine; //Line from config file that has the site information
+            foreach (string line in lines)
+            {
+                parsedLine = line.Split(null);
+                switch (parsedLine[0])
+                {
+                    case "Site":
+                        siteTree.Add(parsedLine[1], parsedLine[3]); //adds site to the hastable(tree of sites)
+                        break;
+                    case "Process":
+                        switch (parsedLine[3])
+                        {
+                            case "broker":
+                                brokerTable.Add(parsedLine[1], parsedLine[7]);
+                               // new Broker(parsedLine[1]);
+                                break;
+                        }
+                        break;
+                }
+            }
+
             //get user input
             input = Console.ReadLine();
             inputParsed = ParseInput(input);
