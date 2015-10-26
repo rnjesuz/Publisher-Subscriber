@@ -12,6 +12,7 @@ namespace SESDAD
     class Broker
     {
         internal static int myPort;
+        internal static string myURL;
         private string processname;
 
         /// <summary>
@@ -22,6 +23,9 @@ namespace SESDAD
         {
             //TODO remove when PuppetMaster is implemented
             myPort = 8086;
+            //TODO remove after PuppetMaster is implemented
+            myURL = "tcp://localhost:"+myPort+"/broker";
+
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
@@ -50,6 +54,8 @@ namespace SESDAD
         BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL
         BrokerInterface childBroker;
+        //Url broker
+        private string myURL = Broker.myURL;
 
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
@@ -66,11 +72,11 @@ namespace SESDAD
             if (subscribers.ContainsKey(subURL))
             {
                 subscribers[subURL] = "root/" + subscription;
-                System.Console.WriteLine(subURL+" subscibed to: " + subscription);
+                System.Console.WriteLine(subURL+" subscribed to: " + subscription);
             }
             else
             {
-                //TODO trow an exception to the subscriber
+                //TODO throw an exception to the subscriber
                 Console.WriteLine("There is no such Subscriber connected to this Broker");
             }
         }
@@ -83,7 +89,7 @@ namespace SESDAD
             Console.WriteLine("Publisher at: "+pubURL+" connected");
         }
 
-        //change the topic to wich a publisher will write
+        //change the topic to which a publisher will write
         public void ChangePublishTopic(string pubURL, string topic)
         {
             if (publishers.ContainsKey(pubURL))
@@ -110,8 +116,14 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, string pubURL)
         {
+                
                 PropagatePublication(publication, pubURL);
+
+                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+
                 SendPublication(publication, publishers[pubURL]);
+    
         }
 
         //method used to propagate the publication up the Broker Tree.
