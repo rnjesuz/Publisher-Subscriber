@@ -71,5 +71,10 @@ namespace SESDAD
         {
             broker.ChangePublishTopic(myURL, Topic);
         }
+
+        public void SendPublication(string publication)
+        {
+            broker.ReceivePublication(publication, myURL);
+        }
     }
 }
