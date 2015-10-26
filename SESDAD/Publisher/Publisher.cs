@@ -17,6 +17,7 @@ namespace SESDAD
         internal static string brokerURL;
         internal static string myURL;
         internal static int myPort;
+        private string processname;
 
         /// <summary>
         /// The main entry point for the application.
@@ -25,7 +26,7 @@ namespace SESDAD
         static void Main()
         {
             //TODO remove after PuppetMaster is implemented
-            myURL = "tcp://localhost:8088/PublisherServer";
+            myURL = "tcp://localhost:8088/pub";
             //TODO remove after PuppetMaster is implemented
             myPort = 8088;
 
@@ -33,11 +34,11 @@ namespace SESDAD
             ChannelServices.RegisterChannel(channel, false);
 
             //TODO remove after PuppetMaster is implemented
-            brokerURL = "tcp://localhost:8086/BrokerServer";
+            brokerURL = "tcp://localhost:8086/broker";
 
             broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
 
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"PublisherServer",WellKnownObjectMode.Singleton);
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
 
             try
             {
@@ -53,11 +54,12 @@ namespace SESDAD
             Application.Run(new PublisherForm());
         }
 
-        public Publisher(string pubURL, string brkURL, int pubPort)
+        public Publisher(string pubURL, string brkURL, int pubPort, string name)
         {
             myURL = pubURL;
             brokerURL = brkURL;
             myPort = pubPort;
+            processname = name;
         }
     }
 

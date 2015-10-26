@@ -25,11 +25,13 @@ namespace SESDAD
         internal static string myURL;
         internal static string brokerURL;
         internal static int myPort;
+        private string processname;
+
         [STAThread]
         static void Main()
         {
             //TODO remove after PuppetMaster is implemented
-            myURL = "tcp://localhost:8090/SubscriberServer";
+            myURL = "tcp://localhost:8090/sub";
             //TODO remove after PuppetMaster is implemented
             myPort = 8090;
 
@@ -37,11 +39,15 @@ namespace SESDAD
             ChannelServices.RegisterChannel(channel, false);
 
             //TODO remove after PuppetMaster is implemented
-            brokerURL = "tcp://localhost:8086/BrokerServer";
+            brokerURL = "tcp://localhost:8086/broker";
 
             broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface),brokerURL);
 
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "SubscriberServer", WellKnownObjectMode.Singleton);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            form = new SubscriberForm();
+
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "sub", WellKnownObjectMode.Singleton);
 
             try
             {
@@ -52,17 +58,16 @@ namespace SESDAD
                 System.Console.WriteLine("Could not locate Broker");
             }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            form = new SubscriberForm();
+            
             Application.Run(form);
         }
 
-        public Subscriber(string subURL, string brkURL, int subPort)
+        public Subscriber(string subURL, string brkURL, int subPort, string name)
         {
             myURL = subURL;
             brokerURL = brkURL;
             myPort = subPort;
+            processname = name;
         }
     }
 
@@ -71,7 +76,7 @@ namespace SESDAD
 
     public class RemoteSubscriber : MarshalByRefObject, SubscriberInterface
     {
-        public static SubscriberForm form = Subscriber.form;
+        SubscriberForm form = Subscriber.form;
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 

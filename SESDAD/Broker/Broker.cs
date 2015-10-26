@@ -9,9 +9,11 @@ using System.Runtime.Serialization.Formatters;
 
 namespace SESDAD
 {
-    static class Program
+    class Broker
     {
         internal static int myPort;
+        private string processname;
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -23,13 +25,18 @@ namespace SESDAD
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),"BrokerServer",WellKnownObjectMode.Singleton);
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),"broker",WellKnownObjectMode.Singleton);
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
 
             
+        }
+
+        public Broker(string name)
+        {
+            processname = name;
         }
     }
 
@@ -50,7 +57,7 @@ namespace SESDAD
             //SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
             
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
-            subscribers.Add(subURL, "root/");
+            subscribers.Add(subURL, "root");
             System.Console.WriteLine("Subscriber at: "+subURL+ " connected");
         }
 
@@ -58,7 +65,7 @@ namespace SESDAD
         {
             if (subscribers.ContainsKey(subURL))
             {
-                subscribers[subURL] = subscription;
+                subscribers[subURL] = "root/" + subscription;
                 System.Console.WriteLine(subURL+" subscibed to: " + subscription);
             }
             else
@@ -72,7 +79,7 @@ namespace SESDAD
         {
             //PublisherInterface newPublisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), "tcp://localhost:8088/PublisherServer");
             //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
-            publishers.Add(pubURL, "root/" );
+            publishers.Add(pubURL, "root" );
             Console.WriteLine("Publisher at: "+pubURL+" connected");
         }
 
@@ -81,7 +88,7 @@ namespace SESDAD
         {
             if (publishers.ContainsKey(pubURL))
             {
-                publishers[pubURL] = topic;
+                publishers[pubURL] = "root/"+ topic;
                 Console.WriteLine(pubURL+" publishing to: " + topic);
             }
             else
@@ -123,7 +130,7 @@ namespace SESDAD
             //See if any subscriber is interested in this publication
             foreach(String subscriber in subscribers.Keys)
             {
-                if (subscribers[subscriber].Equals(publicationTopic))
+                if (publicationTopic.Contains(subscribers[subscriber]))
                 {
                     SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
                     newSubscriber.ReceivePublication(publication);

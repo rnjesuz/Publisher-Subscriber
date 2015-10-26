@@ -19,9 +19,13 @@ namespace PuppetMaster
             int numberofevents;
             int sleepInterval;
 
+            //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
+            int Loglevel = 0;
+            int eventNumber = 0;
+
             //read all lines from the config file. split ea line into an array
             string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Public\TestFolder\WriteLines2.txt");
-
+    
             //get user input
             input = Console.ReadLine();
             inputParsed = ParseInput(input);
