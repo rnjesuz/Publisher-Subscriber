@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
 
-namespace PuppetMaster
+namespace SESDAD
 {
     class PuppetMaster
     {
@@ -26,6 +26,12 @@ namespace PuppetMaster
 
             //HashTable withe the brokers and it's URL. <brokers, URL>
             Dictionary<string, string> brokerTable = new Dictionary<string, string>();
+
+            //HashTable withe the publishers and it's URL. <publishers, URL>
+            Dictionary<string, string> publisherTable = new Dictionary<string, string>();
+
+            //HashTable withe the subsribers and it's URL. <subsribers, URL>
+            Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
 
             //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
             int Loglevel = 0;
@@ -48,11 +54,28 @@ namespace PuppetMaster
                         switch (parsedLine[3])
                         {
                             case "broker":
-                                brokerTable.Add(parsedLine[1], parsedLine[7]);
-                               // new Broker(parsedLine[1]);
+                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                {
+                                    brokerTable.Add(parsedLine[1], parsedLine[7]);
+                                   // new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                }
                                 break;
-                        }
-                        break;
+                            case "publisher":
+                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                {
+                                    publisherTable.Add(parsedLine[1], parsedLine[7]);
+                                    // new Publisher(parsedLine[1]);
+                                }
+                                break;
+                            case "subscriber":
+                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                {
+                                    subscriberTable.Add(parsedLine[1], parsedLine[7]);
+                                    // new Subscriber(parsedLine[1]);
+                                }
+                                break;
+                        }      
+                       break;
                 }
             }
 
