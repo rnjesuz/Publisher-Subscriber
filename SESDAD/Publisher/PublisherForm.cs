@@ -33,6 +33,10 @@ namespace SESDAD
         {
 
         }
-        
+
+        private void SendButton_Click(object sender, EventArgs e)
+        {
+            RP.SendPublication(PublicationTextBox.Text);
+        }
     }
 }
