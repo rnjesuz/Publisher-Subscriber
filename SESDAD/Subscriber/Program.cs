@@ -28,13 +28,7 @@ namespace SESDAD
             //hardcoded port to 8090
             //TODO change port to be dynamic
 
-            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
-            provider.TypeFilterLevel = TypeFilterLevel.Full;
-            IDictionary props = new Hashtable();
-            props["port"] = 8090;
-            TcpChannel channel = new TcpChannel(props, null, provider);
-
-            //TcpChannel channel = new TcpChannel(8090);
+            TcpChannel channel = new TcpChannel(8090);
             ChannelServices.RegisterChannel(channel, false);
 
             broker = (BrokerInterface)Activator.GetObject(
