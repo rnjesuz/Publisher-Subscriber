@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Runtime.Serialization.Formatters;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -19,24 +21,32 @@ namespace SESDAD
 
         internal static BrokerInterface broker;
         internal static Form1 form;
+        internal static RemoteSubscriber rs;
         [STAThread]
         static void Main()
         {
             //hardcoded port to 8090
             //TODO change port to be dynamic
-            TcpChannel channel = new TcpChannel(8090);
-            ChannelServices.RegisterChannel(channel, false);
 
-            RemoteSubscriber rs = new RemoteSubscriber();
-            RemotingServices.Marshal(rs, "SubscriberServer", typeof(RemoteSubscriber));
+            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+            provider.TypeFilterLevel = TypeFilterLevel.Full;
+            IDictionary props = new Hashtable();
+            props["port"] = 8090;
+            TcpChannel channel = new TcpChannel(props, null, provider);
+
+            //TcpChannel channel = new TcpChannel(8090);
+            ChannelServices.RegisterChannel(channel, false);
 
             broker = (BrokerInterface)Activator.GetObject(
                 typeof(BrokerInterface),
                 "tcp://localhost:8086/BrokerServer");
 
+            rs = new RemoteSubscriber();
+            RemotingServices.Marshal(rs, "SubscriberServer", typeof(RemoteSubscriber));
+
             try
             {
-                broker.ConnectSubscriber();
+                broker.ConnectSubscriber("localhost:8090");
             }
             catch (SocketException)
             {
@@ -67,7 +77,7 @@ namespace SESDAD
         {
             try
             {
-                broker.AddSubscription(this, topic);
+                broker.AddSubscription("localhost:8090", topic);
             }
             catch (SocketException)
             {

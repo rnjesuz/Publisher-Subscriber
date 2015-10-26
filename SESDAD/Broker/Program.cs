@@ -1,9 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Windows.Forms;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters;
 
 namespace SESDAD
 {
@@ -15,7 +17,14 @@ namespace SESDAD
         [STAThread]
         static void Main()
         {
-            TcpChannel channel = new TcpChannel(8086);
+
+            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+            provider.TypeFilterLevel = TypeFilterLevel.Full;
+            IDictionary props = new Hashtable();
+            props["port"] = 8086;
+            TcpChannel channel = new TcpChannel(props, null, provider);
+
+            //TcpChannel channel = new TcpChannel(8086);
             ChannelServices.RegisterChannel(channel, false);
 
             RemotingConfiguration.RegisterWellKnownServiceType(
@@ -23,7 +32,7 @@ namespace SESDAD
                 "BrokerServer",
                 WellKnownObjectMode.Singleton);
 
-            Application.EnableVisualStyles();
+           Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
 
@@ -34,28 +43,28 @@ namespace SESDAD
     class RemoteBroker: MarshalByRefObject, BrokerInterface
     {
         //Dictionary of every publisher connected to this Broker and his topic 
-        Dictionary<PublisherInterface, string> publishers = new Dictionary<PublisherInterface, string>();
+        Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
-        Dictionary<SubscriberInterface, string> subscribers = new Dictionary<SubscriberInterface, string>();
+        Dictionary<string, string> subscribers = new Dictionary<string, string>();
         //Father node in the Broker Tree. CANNOT be NULL
         BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL
         BrokerInterface childBroker;
 
         //function called by a subscriber wishing to connect to this broker
-        public void ConnectSubscriber()
+        public void ConnectSubscriber(string subURL)
         {
-            SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
+            //SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
-            subscribers.Add(newSubscriber, "root/");
-            System.Console.WriteLine("conectei");
+            subscribers.Add(subURL, "root/");
+            System.Console.WriteLine("Subscriber at: "+subURL+ "connected");
         }
 
-        public void AddSubscription(SubscriberInterface subscriber, string subscription)
+        public void AddSubscription(string subURL, string subscription)
         {
-            if (subscribers.ContainsKey(subscriber))
+            if (subscribers.ContainsKey(subURL))
             {
-                subscribers[subscriber] = subscription;
+                subscribers[subURL] = subscription;
                 System.Console.WriteLine("subscrevi a:" + subscription);
             }
             else
@@ -65,19 +74,21 @@ namespace SESDAD
             }
         }
         
-        public void ConnectPublisher()
+        public void ConnectPublisher(string pubURL)
         {
-            PublisherInterface newPublisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), "tcp://localhost:8088/PublisherServer");
+            //PublisherInterface newPublisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), "tcp://localhost:8088/PublisherServer");
             //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
-            publishers.Add(newPublisher, "root/" );
+            publishers.Add(pubURL, "root/" );
+            Console.WriteLine("Publisher at: "+pubURL+" connected");
         }
 
         //change the topic to wich a publisher will write
-        public void ChangePublishTopic(PublisherInterface publisher, string topic)
+        public void ChangePublishTopic(string pubURL, string topic)
         {
-            if (publishers.ContainsKey(publisher))
+            if (publishers.ContainsKey(pubURL))
             {
-                publishers[publisher] = topic;
+                publishers[pubURL] = topic;
+                Console.WriteLine("Publishing to: " + topic);
             }
             else
             {
@@ -96,19 +107,19 @@ namespace SESDAD
         //method called by a publisher to publish a publication
         //or
         //method called by a child broker to propagate a publication
-        public void ReceivePublication(string publication, PublisherInterface publisher)
+        public void ReceivePublication(string publication, string pubURL)
         {
-                PropagatePublication(publication, publisher);
-                SendPublication(publication, publishers[publisher]);
+                PropagatePublication(publication, pubURL);
+                SendPublication(publication, publishers[pubURL]);
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
-        public void PropagatePublication(string publication, PublisherInterface publisher)
+        public void PropagatePublication(string publication, string pubURL)
         {
             //check if Broker is tree root
             if(fatherBroker != null)
-                fatherBroker.ReceivePublication(publication, publisher);
+                fatherBroker.ReceivePublication(publication, pubURL);
         }
 
         //method used to send the publication to one or several subscribers of the broker
@@ -116,10 +127,13 @@ namespace SESDAD
         public void SendPublication(string publication, string publicationTopic)
         {
             //See if any subscriber is interested in this publication
-            foreach(SubscriberInterface subscriber in subscribers.Keys)
+            foreach(String subscriber in subscribers.Keys)
             {
                 if (subscribers[subscriber].Equals(publicationTopic))
-                       subscriber.ReceivePublication(publication);
+                {
+                    SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
+                    newSubscriber.ReceivePublication(publication);
+                }
             }
         }
 

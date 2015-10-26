@@ -13,19 +13,18 @@ namespace SESDAD
 
     public interface BrokerInterface
     {
-        void ConnectSubscriber();
-        void AddSubscription(SubscriberInterface subscriber, string subscription);
-        void ConnectPublisher();
-        void ChangePublishTopic(PublisherInterface publisher, string topic);
+        void ConnectSubscriber(string pubURL);
+        void AddSubscription(string subURL, string subscription);
+        void ConnectPublisher(string subURL);
+        void ChangePublishTopic(string pubURL, string topic);
         void ConnectFatherBroker(int port);
-        void ReceivePublication(string publication, PublisherInterface publisher);
-        void PropagatePublication(string publication, PublisherInterface publisher);
+        void ReceivePublication(string publication, string pubURL);
+        void PropagatePublication(string publication, string pubURL);
         void SendPublication(string publication, string topic);
     }
     
     public interface PublisherInterface
     {
-        void ConnectBroker();
         void ChangeTopic(string topic);
     }
     public interface SubscriberInterface

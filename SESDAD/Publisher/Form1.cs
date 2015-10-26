@@ -33,10 +33,6 @@ namespace SESDAD
         {
 
         }
-
-        private void BrokerConnectionButton_Click(object sender, EventArgs e)
-        {
-            RP.ConnectBroker();
-        }
+        
     }
 }

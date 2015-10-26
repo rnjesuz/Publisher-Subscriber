@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
@@ -9,8 +10,10 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    static class Program
+    static class Publisher
     {
+
+        internal static BrokerInterface broker;
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -20,10 +23,21 @@ namespace SESDAD
             TcpChannel channel = new TcpChannel(8088);
             ChannelServices.RegisterChannel(channel, false);
 
+            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), "tcp://localhost:8086/BrokerServer");
+
             RemotingConfiguration.RegisterWellKnownServiceType(
                 typeof(RemotePublisher),
                 "PublisherServer",
                 WellKnownObjectMode.Singleton);
+
+            try
+            {
+                broker.ConnectPublisher("localhost:8088");
+            }
+            catch (SocketException)
+            {
+                System.Console.WriteLine("Could not locate server");
+            }
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -33,15 +47,12 @@ namespace SESDAD
 
     class RemotePublisher : MarshalByRefObject, PublisherInterface
     {
-        private BrokerInterface Broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), "tcp://localhost:8086/BrokerServer");
 
-        public void ConnectBroker() {
-           Broker.ConnectPublisher();
-        }
+        private BrokerInterface broker = Publisher.broker;
 
         public void ChangeTopic(string Topic)
         {
-            Broker.ChangePublishTopic(this, Topic);
+            broker.ChangePublishTopic("localhost:8088", Topic);
         }
     }
 }
