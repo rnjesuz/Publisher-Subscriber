@@ -1,6 +1,6 @@
 ﻿namespace SESDAD
 {
-    partial class Form1
+    partial class PublisherForm
     {
         /// <summary>
         /// Required designer variable.

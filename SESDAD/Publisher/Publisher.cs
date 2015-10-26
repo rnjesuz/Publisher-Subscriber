@@ -50,7 +50,7 @@ namespace SESDAD
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            Application.Run(new PublisherForm());
         }
 
         public Publisher(string pubURL, string brkURL, int pubPort)

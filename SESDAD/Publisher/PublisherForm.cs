@@ -10,10 +10,10 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    public partial class Form1 : Form
+    public partial class PublisherForm : Form
     {
         private RemotePublisher RP =  new RemotePublisher();
-        public Form1()
+        public PublisherForm()
         {
             InitializeComponent();
         }

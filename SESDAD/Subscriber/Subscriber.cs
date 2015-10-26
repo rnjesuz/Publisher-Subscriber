@@ -20,7 +20,7 @@ namespace SESDAD
         /// 
 
         internal static BrokerInterface broker;
-        internal static Form1 form;
+        internal static SubscriberForm form;
         internal static RemoteSubscriber rs;
         internal static string myURL;
         internal static string brokerURL;
@@ -54,7 +54,7 @@ namespace SESDAD
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            form = new Form1();
+            form = new SubscriberForm();
             Application.Run(form);
         }
 
@@ -71,7 +71,7 @@ namespace SESDAD
 
     public class RemoteSubscriber : MarshalByRefObject, SubscriberInterface
     {
-        public static Form1 form = Subscriber.form;
+        public static SubscriberForm form = Subscriber.form;
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 
