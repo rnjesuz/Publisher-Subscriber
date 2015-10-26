@@ -32,4 +32,9 @@ namespace SESDAD
     {
         void ReceivePublication(string publication);
     }
+
+    public interface PMInterface
+    {
+        void UpdateEventLog(string eventlabel, string p1, string p2, string topicname);
+    }
 }
