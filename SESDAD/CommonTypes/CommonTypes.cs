@@ -15,6 +15,7 @@ namespace SESDAD
     {
         void ConnectSubscriber(string pubURL);
         void AddSubscription(string subURL, string subscription);
+        void RemoveSubscription(string subURL, string topic);
         void ConnectPublisher(string subURL);
         void ChangePublishTopic(string pubURL, string topic);
         void ConnectFatherBroker(int port);
