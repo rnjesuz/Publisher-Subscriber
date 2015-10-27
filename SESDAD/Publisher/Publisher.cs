@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    class Publisher
+    public class Publisher
     {
 
         internal static BrokerInterface broker;
@@ -54,12 +54,20 @@ namespace SESDAD
             Application.Run(new PublisherForm());
         }
 
-        public Publisher(string pubURL, string brkURL, int pubPort, string name)
+        public Publisher(string name, string pubURL, string brkURL)
         {
             myURL = pubURL;
             brokerURL = brkURL;
-            myPort = pubPort;
+            myPort = parseURL(pubURL);
             processname = name;
+        }
+
+        public int parseURL(string url)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+            myPort = int.Parse(parsedURLv2[0]);
+            return myPort;
         }
     }
 
