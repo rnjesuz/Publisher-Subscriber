@@ -11,8 +11,9 @@ namespace SESDAD
 {
     class Broker
     {
-        internal static int myPort;
+        private static int myPort;
         internal static string myURL;
+        private static string fatherURL;
         private string processname;
 
         /// <summary>
@@ -22,9 +23,9 @@ namespace SESDAD
         static void Main()
         {
             //TODO remove when PuppetMaster is implemented
-            myPort = 8086;
+           // myPort = 8086;
             //TODO remove after PuppetMaster is implemented
-            myURL = "tcp://localhost:"+myPort+"/broker";
+            //myURL = "tcp://localhost:"+myPort+"/broker";
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
@@ -38,9 +39,27 @@ namespace SESDAD
             
         }
 
-        public Broker(string name)
+        public Broker(string name, string url, string fUrl)
         {
             processname = name;
+            myURL = url;
+            fatherURL = fUrl;
+            myPort = parseURL(url);
+        }
+
+        public Broker (string name, string url)
+        {
+            processname = name;
+            myURL = url;
+            myPort = parseURL(url);
+        }
+
+        public int parseURL(string url)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+            myPort = int.Parse(parsedURLv2[0]);
+            return myPort;
         }
     }
 
@@ -50,9 +69,9 @@ namespace SESDAD
         Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
         Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
-        //Father node in the Broker Tree. CANNOT be NULL
+        //Father node in the Broker Tree. CAN be NULL. root of the tree
         BrokerInterface fatherBroker;
-        //Child node in the Broker Tree. CAN be NULL
+        //Child node in the Broker Tree. CAN be NULL. last leaf
         BrokerInterface childBroker;
         //Url broker
         private string myURL = Broker.myURL;
