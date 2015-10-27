@@ -93,6 +93,18 @@ namespace SESDAD
             }
             catch (SocketException)
             {
+                
+            }
+        }
+
+        internal void RemoveSubscription(string topic)
+        {
+            try
+            {
+                broker.RemoveSubscription(myURL, topic);
+            }
+            catch(SocketException)
+            {
                 System.Console.WriteLine("Could not locate Broker");
             }
         }
