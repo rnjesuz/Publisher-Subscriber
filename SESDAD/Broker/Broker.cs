@@ -49,7 +49,7 @@ namespace SESDAD
         //Dictionary of every publisher connected to this Broker and his topic 
         Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
-        Dictionary<string, string> subscribers = new Dictionary<string, string>();
+        Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
         //Father node in the Broker Tree. CANNOT be NULL
         BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL
@@ -61,18 +61,42 @@ namespace SESDAD
         public void ConnectSubscriber(string subURL)
         {
             //SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
-            
+
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
-            subscribers.Add(subURL, "root");
+            List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
+            auxlist.Add("root");
+            subscribers.Add(subURL, auxlist);
             System.Console.WriteLine("Subscriber at: "+subURL+ " connected");
         }
 
         public void AddSubscription(string subURL, string subscription)
         {
+            /*Verify if subURL is on the List*/
             if (subscribers.ContainsKey(subURL))
             {
-                subscribers[subURL] = "root/" + subscription;
-                System.Console.WriteLine(subURL+" subscribed to: " + subscription);
+                /*Verify if already subscribed to topic*/
+                if (!subscribers[subURL].Contains("root/" + subscription))
+                {
+                    /*Verify if Subscribers first subscription*/
+                    if (subscribers[subURL].Count == 1 && subscribers[subURL].Contains("root"))
+                    {
+                        /*eliminate root entry, so no errors*/
+                        subscribers[subURL].Clear();
+                        subscribers[subURL].Add("root/" + subscription);
+                        System.Console.WriteLine(subURL + " subscribed to: " + subscription);
+
+                    }
+                    else
+                    {
+                        /*if not the first subscription, do this*/
+                        subscribers[subURL].Add("root/" + subscription);
+                        System.Console.WriteLine(subURL + " subscribed to: " + subscription);
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine(subURL + " already subscribed to " + subscription);
+                }
             }
             else
             {
@@ -85,7 +109,8 @@ namespace SESDAD
         {
             //PublisherInterface newPublisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), "tcp://localhost:8088/PublisherServer");
             //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
-            publishers.Add(pubURL, "root" );
+
+            publishers.Add(pubURL, "root");
             Console.WriteLine("Publisher at: "+pubURL+" connected");
         }
 
@@ -94,7 +119,7 @@ namespace SESDAD
         {
             if (publishers.ContainsKey(pubURL))
             {
-                publishers[pubURL] = "root/"+ topic;
+                publishers[pubURL]="root/"+ topic;
                 Console.WriteLine(pubURL+" publishing to: " + topic);
             }
             else
@@ -119,8 +144,8 @@ namespace SESDAD
                 
                 PropagatePublication(publication, pubURL);
 
-                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+                /*PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);*/
 
                 SendPublication(publication, publishers[pubURL]);
     
@@ -142,10 +167,13 @@ namespace SESDAD
             //See if any subscriber is interested in this publication
             foreach(String subscriber in subscribers.Keys)
             {
-                if (publicationTopic.Contains(subscribers[subscriber]))
+                foreach (String topic in subscribers[subscriber])
                 {
-                    SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
-                    newSubscriber.ReceivePublication(publication);
+                    if (publicationTopic.Contains(topic))
+                    {
+                        SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
+                        newSubscriber.ReceivePublication(publication);
+                    }
                 }
             }
         }
