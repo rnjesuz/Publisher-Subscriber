@@ -30,24 +30,20 @@ namespace SESDAD
         [STAThread]
         static void Main()
         {
-            //TODO remove after PuppetMaster is implemented
+            /*//TODO remove after PuppetMaster is implemented
             myURL = "tcp://localhost:8090/sub";
             //TODO remove after PuppetMaster is implemented
-            myPort = 8090;
+            myPort = 8090;*/
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
             //TODO remove after PuppetMaster is implemented
-            brokerURL = "tcp://localhost:8086/broker";
-
-            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface),brokerURL);
-
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            form = new SubscriberForm();
+            //brokerURL = "tcp://localhost:8086/broker";            
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "sub", WellKnownObjectMode.Singleton);
+
+            /*broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
 
             try
             {
@@ -56,9 +52,11 @@ namespace SESDAD
             catch (SocketException)
             {
                 System.Console.WriteLine("Could not locate Broker");
-            }
+            }*/
 
-            
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            form = new SubscriberForm();
             Application.Run(form);
         }
 
