@@ -20,17 +20,21 @@ namespace SESDAD
         static int sleepInterval;
         static bool active = true;
 
-        //HashTable withe the sites and it's parents <site,parent>
+        //HashTable with the the sites and it's parents <site,parent>
         static Dictionary<string, string> siteTree = new Dictionary<string, string>();
 
-        //HashTable withe the brokers and it's URL. <brokers, URL>
+        //HashTable with the the brokers and it's URL. <brokers, URL>
         static Dictionary<string, string> brokerTable = new Dictionary<string, string>();
 
-        //HashTable withe the publishers and it's URL. <publishers, URL>
+        //HashTable with the the publishers and it's URL. <publishers, URL>
         static Dictionary<string, string> publisherTable = new Dictionary<string, string>();
 
-        //HashTable withe the subsribers and it's URL. <subsribers, URL>
+        //HashTable with the the subsribers and it's URL. <subsribers, URL>
         static Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
+
+        //Dictionary from ints to string. the int is the abstraction of the site number. the string is the URL of the site broker
+        //By arquitecture rule which site has a broker and its only 1.
+        static Dictionary<string, string> SiteToBroker = new Dictionary<string, string>();
 
         //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
         static int Loglevel = 0;
@@ -82,8 +86,16 @@ namespace SESDAD
                             case "broker":
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
+                                    SiteToBroker.Add(parsedLine[5], parsedLine[7]);
                                     brokerTable.Add(parsedLine[1], parsedLine[7]);
-                                    // new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                    if (siteTree[parsedLine[5]].Equals("none"))
+                                    {
+                                        new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                    }
+                                    else
+                                    {
+                                        new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                    }
                                 }
                                 break;
 
