@@ -31,6 +31,8 @@
             this.SubscribeButton = new System.Windows.Forms.Button();
             this.TopicBox = new System.Windows.Forms.TextBox();
             this.PublicationBox = new System.Windows.Forms.TextBox();
+            this.UnsubBox = new System.Windows.Forms.TextBox();
+            this.UnsubButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // SubscribeButton
@@ -53,22 +55,41 @@
             // 
             // PublicationBox
             // 
-            this.PublicationBox.Location = new System.Drawing.Point(13, 39);
+            this.PublicationBox.Location = new System.Drawing.Point(13, 71);
             this.PublicationBox.Multiline = true;
             this.PublicationBox.Name = "PublicationBox";
-            this.PublicationBox.Size = new System.Drawing.Size(259, 210);
+            this.PublicationBox.Size = new System.Drawing.Size(178, 178);
             this.PublicationBox.TabIndex = 2;
             this.PublicationBox.TextChanged += new System.EventHandler(this.PublicationBox_TextChanged);
             // 
-            // Form1
+            // UnsubBox
+            // 
+            this.UnsubBox.Location = new System.Drawing.Point(12, 38);
+            this.UnsubBox.Name = "UnsubBox";
+            this.UnsubBox.Size = new System.Drawing.Size(179, 20);
+            this.UnsubBox.TabIndex = 3;
+            // 
+            // UnsubButton
+            // 
+            this.UnsubButton.Location = new System.Drawing.Point(197, 41);
+            this.UnsubButton.Name = "UnsubButton";
+            this.UnsubButton.Size = new System.Drawing.Size(75, 23);
+            this.UnsubButton.TabIndex = 4;
+            this.UnsubButton.Text = "Unsubscribe";
+            this.UnsubButton.UseVisualStyleBackColor = true;
+            this.UnsubButton.Click += new System.EventHandler(this.UnsubButton_Click);
+            // 
+            // SubscriberForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Controls.Add(this.UnsubButton);
+            this.Controls.Add(this.UnsubBox);
             this.Controls.Add(this.PublicationBox);
             this.Controls.Add(this.TopicBox);
             this.Controls.Add(this.SubscribeButton);
-            this.Name = "Form1";
+            this.Name = "SubscriberForm";
             this.Text = "Form1";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
@@ -81,6 +102,8 @@
         private System.Windows.Forms.Button SubscribeButton;
         private System.Windows.Forms.TextBox TopicBox;
         private System.Windows.Forms.TextBox PublicationBox;
+        private System.Windows.Forms.TextBox UnsubBox;
+        private System.Windows.Forms.Button UnsubButton;
     }
 }
 

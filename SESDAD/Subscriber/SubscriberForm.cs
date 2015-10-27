@@ -50,5 +50,11 @@ namespace SESDAD
         {
 
         }
+
+        private void UnsubButton_Click(object sender, EventArgs e)
+        {
+            string topic = UnsubBox.Text;
+            rs.RemoveSubscription(topic);
+        }
     }
 }
