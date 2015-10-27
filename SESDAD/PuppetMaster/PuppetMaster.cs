@@ -103,7 +103,7 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
-                                    // new Publisher(parsedLine[1]);
+                                    new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
                                 }
                                 break;
 
@@ -111,7 +111,7 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
-                                    // new Subscriber(parsedLine[1]);
+                                    new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
                                 }
                                 break;
                         }
