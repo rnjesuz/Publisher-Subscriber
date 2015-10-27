@@ -34,6 +34,12 @@ namespace SESDAD
 
         //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
         static int Loglevel = 0;
+
+        //boolean for the event routing .  0 = FLOODING, 1 = FILTER; Default is FLOODING
+        static int eventRouting = 0;
+
+        //boolean for the ordering . -1=NO, 0 = FIFO, 1 = TOTAL; Default is FIFO
+        static int Ordering = 0;
         static int eventNumber = 0;
 
         static void Main(string[] args)
@@ -68,6 +74,7 @@ namespace SESDAD
                     case "Site":
                         siteTree.Add(parsedLine[1], parsedLine[3]); //adds site to the hastable(tree of sites)
                         break;
+
                     case "Process":
                         switch (parsedLine[3])
                         {
@@ -78,6 +85,7 @@ namespace SESDAD
                                     // new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
                                 }
                                 break;
+
                             case "publisher":
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
@@ -85,12 +93,56 @@ namespace SESDAD
                                     // new Publisher(parsedLine[1]);
                                 }
                                 break;
+
                             case "subscriber":
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
                                     // new Subscriber(parsedLine[1]);
                                 }
+                                break;
+                        }
+                        break;
+
+                    case "LoggingLevel":
+                        switch (parsedLine[1])
+                        {
+                            case "full":
+                                Loglevel = 1;
+                                break;
+
+                            case "light":
+                                Loglevel = 0;
+                                break;
+                        }
+                        break;
+
+                    case "RoutingPolicy":
+                        switch (parsedLine[1])
+                        {
+                            case "flooding":
+                                eventRouting = 0;
+                                break;
+
+                            case "filter":
+                                eventRouting = 1;
+                                break;
+                        }
+                        break;
+
+                    case "Ordering":
+                        switch (parsedLine[1])
+                        {
+                            case "NO":
+                                Ordering = -1;
+                                break;
+
+                            case "FIFO":
+                                Ordering = 0;
+                                break;
+
+                            case "TOTAL":
+                                Ordering = 1;
                                 break;
                         }
                         break;
