@@ -12,7 +12,7 @@ using System.Windows.Forms;
 
 namespace SESDAD
 {
-    class Subscriber
+    public class Subscriber
     {
         /// <summary>
         /// The main entry point for the application.
@@ -62,12 +62,20 @@ namespace SESDAD
             Application.Run(form);
         }
 
-        public Subscriber(string subURL, string brkURL, int subPort, string name)
+        public Subscriber(string name, string subURL, string brkURL)
         {
             myURL = subURL;
             brokerURL = brkURL;
-            myPort = subPort;
+            myPort = parseURL(subURL);
             processname = name;
+        }
+
+        public int parseURL(string url)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+            myPort = int.Parse(parsedURLv2[0]);
+            return myPort;
         }
     }
 
