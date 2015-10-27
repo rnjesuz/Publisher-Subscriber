@@ -9,7 +9,7 @@ using System.Runtime.Serialization.Formatters;
 
 namespace SESDAD
 {
-    class Broker
+    public class Broker
     {
         private static int myPort;
         internal static string myURL;
