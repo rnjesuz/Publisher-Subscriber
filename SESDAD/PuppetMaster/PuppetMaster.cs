@@ -18,7 +18,7 @@ namespace SESDAD
         static string topicname;
         static int numberofevents;
         static int sleepInterval;
-        static bool active;
+        static bool active = true;
 
         //HashTable withe the sites and it's parents <site,parent>
         static Dictionary<string, string> siteTree = new Dictionary<string, string>();
@@ -73,6 +73,7 @@ namespace SESDAD
                 {
                     case "Site":
                         siteTree.Add(parsedLine[1], parsedLine[3]); //adds site to the hastable(tree of sites)
+                        Console.WriteLine("Site :" + parsedLine[1] + parsedLine[3]);
                         break;
 
                     case "Process":
