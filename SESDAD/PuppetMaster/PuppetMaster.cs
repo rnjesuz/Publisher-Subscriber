@@ -10,33 +10,51 @@ namespace SESDAD
 {
     class PuppetMaster
     {
+        static string input;
+        static List<string> inputParsed;
+        static string firstToken;
+        static string thirdToken;
+        static string processname;
+        static string topicname;
+        static int numberofevents;
+        static int sleepInterval;
+        static bool active;
+
+        //HashTable withe the sites and it's parents <site,parent>
+        static Dictionary<string, string> siteTree = new Dictionary<string, string>();
+
+        //HashTable withe the brokers and it's URL. <brokers, URL>
+        static Dictionary<string, string> brokerTable = new Dictionary<string, string>();
+
+        //HashTable withe the publishers and it's URL. <publishers, URL>
+        static Dictionary<string, string> publisherTable = new Dictionary<string, string>();
+
+        //HashTable withe the subsribers and it's URL. <subsribers, URL>
+        static Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
+
+        //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
+        static int Loglevel = 0;
+        static int eventNumber = 0;
+
         static void Main(string[] args)
         {
-            string input;
-            List<string> inputParsed;
-            string firstToken;
-            string thirdToken;
-            string processname;
-            string topicname;
-            int numberofevents;
-            int sleepInterval;
 
-            //HashTable withe the sites and it's parents <site,parent>
-            Dictionary<string, string> siteTree = new Dictionary<string, string>();
+            ReadConfigFile();
 
-            //HashTable withe the brokers and it's URL. <brokers, URL>
-            Dictionary<string, string> brokerTable = new Dictionary<string, string>();
+            while (active)
+            {
+                //get user input
+                input = Console.ReadLine();
+                inputParsed = ParseInput(input);
+                ExecuteCommand(inputParsed);
+            }
+           
+        }
 
-            //HashTable withe the publishers and it's URL. <publishers, URL>
-            Dictionary<string, string> publisherTable = new Dictionary<string, string>();
-
-            //HashTable withe the subsribers and it's URL. <subsribers, URL>
-            Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
-
-            //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
-            int Loglevel = 0;
-            int eventNumber = 0;
-
+        //method that reads a designated file that has configuration instruction for the system
+        //executes each line and creates a running everyronment of interacting servers
+        private static void ReadConfigFile()
+        {
             //read all lines from the config file. split ea line into an array
             //string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Public\TestFolder\WriteLines2.txt");
             string configPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ConfigFile.txt");
@@ -57,7 +75,7 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     brokerTable.Add(parsedLine[1], parsedLine[7]);
-                                   // new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                    // new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
                                 }
                                 break;
                             case "publisher":
@@ -74,14 +92,30 @@ namespace SESDAD
                                     // new Subscriber(parsedLine[1]);
                                 }
                                 break;
-                        }      
-                       break;
+                        }
+                        break;
                 }
             }
+        }
 
-            //get user input
-            input = Console.ReadLine();
-            inputParsed = ParseInput(input);
+        //receive a string and parde it into several tokens
+        //string are split by whitespace
+        //return a list with all the tokens
+        private static List<string> ParseInput(string input)
+        {
+            List<string> parse = new List<string>();
+            string[] parsedBySpace = input.Split(null);
+            parse = parsedBySpace.OfType<string>().ToList();
+
+            return parse;
+
+        }
+
+        //Reads the input command and executes the expected action
+        //changes internal state of system classes
+        //prints to console in case of error
+        private static void ExecuteCommand(List<string> inputParsed)
+        {
             firstToken = inputParsed.First();
             thirdToken = inputParsed.ElementAt(2);
 
@@ -131,25 +165,14 @@ namespace SESDAD
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
                     //TODO go sleep. how do u auto sleep?
                     break;
+                case "Quit":
+                    active = false;
+                    break;
                 default:
                     Console.WriteLine("Invalid Input");
                     break;
             }
         }
-
-        //receive a string and parde it into several tokens
-        //string are split by whitespace
-        //return a list with all the tokens
-        private static List<string> ParseInput(string input)
-        {
-            List<string> parse = new List<string>();
-            string[] parsedBySpace = input.Split(null);
-            parse = parsedBySpace.OfType<string>().ToList();
-
-            return parse;
-
-        }
-
-
+        
     }
 }
