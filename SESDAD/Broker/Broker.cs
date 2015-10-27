@@ -104,6 +104,42 @@ namespace SESDAD
                 Console.WriteLine("There is no such Subscriber connected to this Broker");
             }
         }
+
+        public void RemoveSubscription(string subURL, string topic)
+        {
+            //Verify if subURL is on the List
+            if (subscribers.ContainsKey(subURL))
+            {
+                //Verify subscriber is subscribed to topic
+                if (subscribers[subURL].Contains("root/"+topic))
+                {
+                    //Verify if only sub -> implement defaul root
+                    if (subscribers[subURL].Count == 1)
+                    {
+                        //remove only topic establish default root
+                        subscribers[subURL].Clear();
+                        subscribers[subURL].Add("root");
+                        Console.WriteLine(topic + " removed from " + subURL);
+                    }
+                    else
+                    {
+                        //Normal remove of topic
+                        subscribers[subURL].Remove("root/" + topic);
+                        Console.WriteLine(topic+" removed from " + subURL);
+                    }
+                }
+                else
+                {
+                    //TODO throw an exception to the subscriber
+                    Console.WriteLine("There is no such topic");
+                }
+            }
+            else
+            {
+                //TODO throw an exception to the subscriber
+                Console.WriteLine("There is no such Subscriber connected to this Broker");
+            }
+        }
         
         public void ConnectPublisher(string pubURL)
         {
