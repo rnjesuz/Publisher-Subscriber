@@ -26,19 +26,18 @@ namespace SESDAD
         static void Main()
         {
             //TODO remove after PuppetMaster is implemented
-            myURL = "tcp://localhost:8088/pub";
+            //myURL = "tcp://localhost:8088/pub";
             //TODO remove after PuppetMaster is implemented
-            myPort = 8088;
+            //myPort = 8088;
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
             //TODO remove after PuppetMaster is implemented
-            brokerURL = "tcp://localhost:8086/broker";
+            //brokerURL = "tcp://localhost:8086/broker";
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
 
             broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
-
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
 
             try
             {

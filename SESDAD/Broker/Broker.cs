@@ -6,6 +6,7 @@ using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters;
+using System.Diagnostics;
 
 namespace SESDAD
 {
@@ -36,7 +37,7 @@ namespace SESDAD
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
 
-            
+           
         }
 
         public Broker(string name, string url, string fUrl)
@@ -45,6 +46,7 @@ namespace SESDAD
             myURL = url;
             fatherURL = fUrl;
             myPort = parseURL(url);
+
         }
 
         public Broker (string name, string url)

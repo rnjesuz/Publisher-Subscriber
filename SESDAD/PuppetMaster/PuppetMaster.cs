@@ -96,16 +96,22 @@ namespace SESDAD
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
+                                        Process process = new Process();
                                         startInfo.FileName = "broker.exe";
-                                        Process.Start(startInfo);
+                                        process.StartInfo = startInfo;
+                                        process.Start();
                                     }
                                     else
                                     {
                                         new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
+                                        Process process = new Process();
                                         startInfo.FileName = "broker.exe";
-                                        Process.Start(startInfo);
+                                        process.StartInfo = startInfo;
+                                        process.Start();
                                     }
                                 }
                                 break;
@@ -115,9 +121,12 @@ namespace SESDAD
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
                                     new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
-                                    ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1]+".exe");
-                                    startInfo.FileName = parsedLine[1] + ".exe";
-                                    Process.Start(startInfo);
+
+                                    ProcessStartInfo startInfo = new ProcessStartInfo();
+                                    Process process = new Process();
+                                    startInfo.FileName = "publisher.exe";
+                                    process.StartInfo = startInfo;
+                                    process.Start();
                                 }
                                 break;
 
@@ -126,9 +135,13 @@ namespace SESDAD
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
                                     new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+
                                     ProcessStartInfo startInfo = new ProcessStartInfo();
+                                    Process process = new Process();
                                     startInfo.FileName = "subscriber.exe";
-                                    Process.Start(startInfo);
+                                    process.StartInfo = startInfo;
+                                    process.Start();
+
                                 }
                                 break;
                         }
