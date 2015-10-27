@@ -37,7 +37,7 @@ namespace SESDAD
             //brokerURL = "tcp://localhost:8086/broker";
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
 
-            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
+           /* broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
 
             try
             {
@@ -46,7 +46,7 @@ namespace SESDAD
             catch (SocketException)
             {
                 System.Console.WriteLine("Could not locate Broker");
-            }
+            }*/
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
