@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
+using static System.Net.Mime.MediaTypeNames;
+using System.Diagnostics;
 
 namespace SESDAD
 {
@@ -88,13 +90,22 @@ namespace SESDAD
                                 {
                                     SiteToBroker.Add(parsedLine[5], parsedLine[7]);
                                     brokerTable.Add(parsedLine[1], parsedLine[7]);
+                                    /*Console.WriteLine(parsedLine[5]);
+                                    Console.WriteLine(parsedLine[7]);
+                                    Console.WriteLine(SiteToBroker[parsedLine[5]]);*/
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                        ProcessStartInfo startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        Process.Start(startInfo);
                                     }
                                     else
                                     {
                                         new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                        ProcessStartInfo startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        Process.Start(startInfo);
                                     }
                                 }
                                 break;
@@ -103,7 +114,10 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
-                                    new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                    new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1]+".exe");
+                                    startInfo.FileName = parsedLine[1] + ".exe";
+                                    Process.Start(startInfo);
                                 }
                                 break;
 
@@ -111,7 +125,10 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
-                                    new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                    new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    ProcessStartInfo startInfo = new ProcessStartInfo();
+                                    startInfo.FileName = "subscriber.exe";
+                                    Process.Start(startInfo);
                                 }
                                 break;
                         }
