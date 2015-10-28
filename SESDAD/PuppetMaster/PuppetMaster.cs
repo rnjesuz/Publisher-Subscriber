@@ -95,16 +95,20 @@ namespace SESDAD
                                     Console.WriteLine(SiteToBroker[parsedLine[5]]);*/
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
-                                        new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                        //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                        string[] args = new string[2] { parsedLine[1], parsedLine[7]};
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", args);
                                         Process.Start(startInfo);
                                     }
                                     else
                                     {
-                                        new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                        // new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
+                                        string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]] };
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", args);
                                         Process.Start(startInfo);
                                     }
                                 }
@@ -114,9 +118,11 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
-                                    new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    //new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]] };
                                     ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1]+".exe");
                                     startInfo.FileName = "publisher.exe";
+                                    startInfo.Arguments = String.Join(" ", args);
                                     Process.Start(startInfo);
                                 }
                                 break;
@@ -125,9 +131,11 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
-                                    new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    //new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
+                                    string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]] };
                                     ProcessStartInfo startInfo = new ProcessStartInfo();
                                     startInfo.FileName = "subscriber.exe";
+                                    startInfo.Arguments = String.Join(" ", args);
                                     Process.Start(startInfo);
                                 }
                                 break;
