@@ -7,6 +7,10 @@ using System.IO;
 using System.Reflection;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
+using System.Runtime.Remoting.Channels.Tcp;
+using System.Runtime.Remoting.Channels;
+using System.Runtime.Remoting;
+using System.IO;
 
 namespace SESDAD
 {
@@ -26,13 +30,13 @@ namespace SESDAD
         static Dictionary<string, string> siteTree = new Dictionary<string, string>();
 
         //HashTable with the the brokers and it's URL. <brokers, URL>
-        static Dictionary<string, string> brokerTable = new Dictionary<string, string>();
+        static internal Dictionary<string, string> brokerTable = new Dictionary<string, string>();
 
         //HashTable with the the publishers and it's URL. <publishers, URL>
-        static Dictionary<string, string> publisherTable = new Dictionary<string, string>();
+        static internal Dictionary<string, string> publisherTable = new Dictionary<string, string>();
 
         //HashTable with the the subsribers and it's URL. <subsribers, URL>
-        static Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
+        static internal Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
 
         //Dictionary from ints to string. the int is the abstraction of the site number. the string is the URL of the site broker
         //By arquitecture rule which site has a broker and its only 1.
@@ -51,8 +55,13 @@ namespace SESDAD
         static void Main(string[] args)
         {
             System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
-
+            
             ReadConfigFile();
+
+            TcpChannel channel = new TcpChannel(8069);
+            ChannelServices.RegisterChannel(channel, false);
+
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePM), "puppetmaster", WellKnownObjectMode.Singleton);
 
             while (active)
             {
@@ -265,5 +274,67 @@ namespace SESDAD
             }
         }
         
+    }
+
+    class RemotePM : MarshalByRefObject, PMInterface
+    {
+        private int eventnumber = 0;
+        private string text;
+        string directory = Directory.GetCurrentDirectory();
+
+        //HashTable with the the brokers and it's URL. <brokers, URL>
+        private Dictionary<string, string> brokerTable = PuppetMaster.brokerTable;
+        //HashTable with the the publishers and it's URL. <publishers, URL>
+        private Dictionary<string, string> publisherTable = PuppetMaster.publisherTable;
+        //HashTable with the the subsribers and it's URL. <subsribers, URL>
+        private Dictionary<string, string> subscriberTable = PuppetMaster.subscriberTable;
+
+
+        /*
+        write the received update into the Log file
+        creates file is not existant. appends text if already existent
+        every call to this update increments a counter ( eventnumber )
+        @eventlabel the label for the event. BroEbent, SubEvent, PubEvent
+        @p1 URL of the process that trigerred the event. Can be a broker, subscriber or publisher
+        @p2 URL of the publisher that sent the publication
+        @topicname topicname
+        */
+        public void UpdateEventLog(string eventlabel, string p1, string p2, string topicname)
+        {
+
+            //p1 can be a subscriber, publisher or broker.
+            //to generalize the method there's no way to know which one it is
+            //we test all the tables to find the processname for the given URL (p1)
+            string process2Name;
+            if (brokerTable.ContainsKey(p1))
+            {
+                process2Name = brokerTable[p1];
+            }
+            else if(publisherTable.ContainsKey(p1))
+            {
+                process2Name = publisherTable[p1];
+            }
+            else
+            {
+                process2Name = subscriberTable[p1];
+            }
+
+            text = eventlabel + " " + p1 + ", " + publisherTable[p2] + ", " + topicname + ", " + eventnumber++;
+            
+            string path = @"" + directory + "\\Log.txt";
+            if (!File.Exists(path))
+            {
+                File.Create(path);
+                TextWriter tw = new StreamWriter(path);
+                tw.WriteLine(text);
+                tw.Close();
+            }
+            else if (File.Exists(path))
+            {
+                TextWriter tw = new StreamWriter(path, true);
+                tw.WriteLine(text);
+                tw.Close();
+            }
+        }
     }
 }
