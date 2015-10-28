@@ -42,9 +42,6 @@ namespace SESDAD
         //By arquitecture rule which site has a broker and its only 1.
         static Dictionary<string, string> SiteToBroker = new Dictionary<string, string>();
 
-        //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
-        static int Loglevel = 0;
-
         //boolean for the event routing .  0 = FLOODING, 1 = FILTER; Default is FLOODING
         static int eventRouting = 0;
 
@@ -54,8 +51,11 @@ namespace SESDAD
 
         static void Main(string[] args)
         {
-            //System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
-            
+            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
+
+            string directory = Directory.GetCurrentDirectory();
+            File.WriteAllBytes(@"" + directory + "\\..\\..\\Log.txt", new byte[] { 0 });
+   
             ReadConfigFile();
 
             TcpChannel channel = new TcpChannel(8069);
@@ -304,6 +304,9 @@ namespace SESDAD
             string process1Name;
             string process2Name;
 
+            //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
+           int Loglevel = 0;
+
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
             //we test all the tables to find the processname for the given URL (p1)
@@ -322,8 +325,16 @@ namespace SESDAD
 
             process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
 
-            text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
-            
+            if(Loglevel == 0)
+            {
+                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
+            }
+
+            if (Loglevel != 0 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
+                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
+            }
+}
+
             string path = @"" + directory + "\\..\\..\\Log.txt";
             if (!File.Exists(path))
             {
