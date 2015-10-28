@@ -21,12 +21,20 @@ namespace SESDAD
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             //TODO remove when PuppetMaster is implemented
-           // myPort = 8086;
+            // myPort = 8086;
             //TODO remove after PuppetMaster is implemented
             //myURL = "tcp://localhost:"+myPort+"/broker";
+            if (args.Length == 3)
+            {
+                new Broker(args[0], args[1], args[2]);
+            }
+            else
+            {
+                new Broker(args[0], args[1]);
+            }
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
