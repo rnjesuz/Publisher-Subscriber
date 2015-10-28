@@ -23,12 +23,13 @@ namespace SESDAD
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             //TODO remove after PuppetMaster is implemented
             //myURL = "tcp://localhost:8088/pub";
             //TODO remove after PuppetMaster is implemented
             //myPort = 8088;
+            Publisher publisher = new Publisher(args[0], args[1], args[2]);
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
@@ -37,20 +38,12 @@ namespace SESDAD
             //brokerURL = "tcp://localhost:8086/broker";
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
 
-           /* broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
-
-            try
-            {
-                broker.ConnectPublisher(myURL);
-            }
-            catch (SocketException)
-            {
-                System.Console.WriteLine("Could not locate Broker");
-            }*/
+            publisher.ConnectToBroker();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new PublisherForm());
+            
         }
 
         public Publisher(string name, string pubURL, string brkURL)
@@ -59,6 +52,20 @@ namespace SESDAD
             brokerURL = brkURL;
             myPort = parseURL(pubURL);
             processname = name;
+        }
+
+        public void ConnectToBroker()
+        {
+            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
+
+            try
+            {
+                broker.ConnectPublisher(myURL);
+            }
+            catch (SocketException)
+            {
+                System.Console.WriteLine("Could not locate Broker");
+            }
         }
 
         public int parseURL(string url)
