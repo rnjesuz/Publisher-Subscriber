@@ -49,6 +49,9 @@ namespace SESDAD
         static int Ordering = 0;
         static int eventNumber = 0;
 
+        //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
+        static internal int Loglevel = 0;
+
         static void Main(string[] args)
         {
             System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
@@ -304,8 +307,6 @@ namespace SESDAD
             string process1Name;
             string process2Name;
 
-            //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
-           int Loglevel = 0;
 
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
@@ -325,15 +326,14 @@ namespace SESDAD
 
             process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
 
-            if(Loglevel == 0)
+            if(PuppetMaster.Loglevel == 0)
             {
                 text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
             }
 
-            if (Loglevel != 0 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
+            if (PuppetMaster.Loglevel != 0 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
                 text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
             }
-}
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
             if (!File.Exists(path))
