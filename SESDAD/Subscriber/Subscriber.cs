@@ -44,6 +44,7 @@ namespace SESDAD
             //brokerURL = "tcp://localhost:8086/broker";            
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "sub", WellKnownObjectMode.Singleton);
+            subscriber.ConnectToBroker();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -65,7 +66,7 @@ namespace SESDAD
 
             try
             {
-                broker.ConnectPublisher(myURL);
+                broker.ConnectSubscriber(myURL);
             }
             catch (SocketException)
             {
