@@ -51,8 +51,6 @@ namespace SESDAD
         static void Main(string[] args)
         {
 
-            ReadConfigFile();
-
             while (active)
             {
                 //get user input
