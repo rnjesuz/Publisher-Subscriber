@@ -82,14 +82,19 @@ namespace SESDAD
 
         private BrokerInterface broker = Publisher.broker;
         private string myURL = Publisher.myURL;
+        string myTopic;
 
         public void ChangeTopic(string Topic)
         {
+            myTopic = Topic;
             broker.ChangePublishTopic(myURL, Topic);
         }
 
         public void SendPublication(string publication)
         {
+            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+            PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+
             broker.ReceivePublication(publication, myURL);
         }
     }

@@ -54,7 +54,7 @@ namespace SESDAD
 
         static void Main(string[] args)
         {
-            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
+            //System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
             
             ReadConfigFile();
 
@@ -301,27 +301,30 @@ namespace SESDAD
         */
         public void UpdateEventLog(string eventlabel, string p1, string p2, string topicname)
         {
+            string process1Name;
+            string process2Name;
 
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
             //we test all the tables to find the processname for the given URL (p1)
-            string process2Name;
-            if (brokerTable.ContainsKey(p1))
+            if (eventlabel.Equals("BroEvent"))
             {
-                process2Name = brokerTable[p1];
+                process1Name = brokerTable.FirstOrDefault(x => x.Value.Contains(p1)).Key;
             }
-            else if(publisherTable.ContainsKey(p1))
+            else if(eventlabel.Equals("PubEvent"))
             {
-                process2Name = publisherTable[p1];
+                process1Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p1)).Key;
             }
             else
             {
-                process2Name = subscriberTable[p1];
+                process1Name = subscriberTable.FirstOrDefault(x => x.Value.Contains(p1)).Key;
             }
 
-            text = eventlabel + " " + p1 + ", " + publisherTable[p2] + ", " + topicname + ", " + eventnumber++;
+            process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
+
+            text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
             
-            string path = @"" + directory + "\\Log.txt";
+            string path = @"" + directory + "\\..\\..\\Log.txt";
             if (!File.Exists(path))
             {
                 File.Create(path);

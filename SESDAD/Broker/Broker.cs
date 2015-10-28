@@ -206,14 +206,9 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, string pubURL)
         {
-                
-                PropagatePublication(publication, pubURL);
+            PropagatePublication(publication, pubURL);
 
-                /*PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);*/
-
-                SendPublication(publication, publishers[pubURL]);
-    
+            SendPublication(publication, pubURL, publishers[pubURL]);
         }
 
         //method used to propagate the publication up the Broker Tree.
@@ -221,13 +216,18 @@ namespace SESDAD
         public void PropagatePublication(string publication, string pubURL)
         {
             //check if Broker is tree root
-            if(fatherBroker != null)
+            if (fatherBroker != null)
+            {
                 fatherBroker.ReceivePublication(publication, pubURL);
+                
+                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+            }
         }
 
         //method used to send the publication to one or several subscribers of the broker
         //checks if any subscriber is intereted in the topic, and sends it to them if yes
-        public void SendPublication(string publication, string publicationTopic)
+        public void SendPublication(string publication, string pubURL, string publicationTopic)
         {
             //See if any subscriber is interested in this publication
             foreach(String subscriber in subscribers.Keys)
@@ -237,7 +237,7 @@ namespace SESDAD
                     if (publicationTopic.Contains(topic))
                     {
                         SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
-                        newSubscriber.ReceivePublication(publication);
+                        newSubscriber.ReceivePublication(publication, pubURL, publicationTopic);
                     }
                 }
             }

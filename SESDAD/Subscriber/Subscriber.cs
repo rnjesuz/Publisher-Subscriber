@@ -92,8 +92,11 @@ namespace SESDAD
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 
-        public void ReceivePublication(string publication)
+        public void ReceivePublication(string publication, string pubURL, string pubTopic)
         {
+            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+            PM.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
+
             form.Invoke(new DelegateReceivePublication(form.UpdatePublication), publication);
         }
 
