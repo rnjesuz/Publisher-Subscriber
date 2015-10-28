@@ -50,6 +50,8 @@ namespace SESDAD
 
         static void Main(string[] args)
         {
+            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
+
             ReadConfigFile();
 
             while (active)
