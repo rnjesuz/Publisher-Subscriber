@@ -28,12 +28,14 @@ namespace SESDAD
         private string processname;
 
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             /*//TODO remove after PuppetMaster is implemented
             myURL = "tcp://localhost:8090/sub";
             //TODO remove after PuppetMaster is implemented
             myPort = 8090;*/
+
+            Subscriber subscriber = new Subscriber(args[0], args[1], args[2]);
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
@@ -42,17 +44,6 @@ namespace SESDAD
             //brokerURL = "tcp://localhost:8086/broker";            
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "sub", WellKnownObjectMode.Singleton);
-
-            /*broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
-
-            try
-            {
-                broker.ConnectSubscriber(myURL);
-            }
-            catch (SocketException)
-            {
-                System.Console.WriteLine("Could not locate Broker");
-            }*/
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -66,6 +57,20 @@ namespace SESDAD
             brokerURL = brkURL;
             myPort = parseURL(subURL);
             processname = name;
+        }
+
+        public void ConnectToBroker()
+        {
+            broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
+
+            try
+            {
+                broker.ConnectPublisher(myURL);
+            }
+            catch (SocketException)
+            {
+                System.Console.WriteLine("Could not locate Broker");
+            }
         }
 
         public int parseURL(string url)
