@@ -50,6 +50,7 @@ namespace SESDAD
 
         static void Main(string[] args)
         {
+            ReadConfigFile();
 
             while (active)
             {
