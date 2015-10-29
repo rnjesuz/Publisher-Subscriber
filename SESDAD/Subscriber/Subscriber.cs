@@ -94,14 +94,13 @@ namespace SESDAD
 
         public void ReceivePublication(string publication, string pubURL, string pubTopic)
         {
-            Console.WriteLine("received publication to ym subscription");
+            Console.WriteLine("received publication for my subscription");
             PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
             PM.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
 
             form.Invoke(new DelegateReceivePublication(form.UpdatePublication), publication);
 
             Console.WriteLine("finished receiving publication for my subscription");
-            Console.ReadLine();
         }
 
         internal void AddSubscription(string topic)
