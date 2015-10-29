@@ -90,6 +90,9 @@ namespace SESDAD
         //Url broker
         private string myURL = Broker.myURL;
 
+        // 0 did NOT porpagate yet; 1 already porpagate
+        private int propagate = 0;
+
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
         {
@@ -222,7 +225,11 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, string pubURL)
         {
-            PropagatePublication(publication, pubURL);
+            if (propagate == 0)
+            {
+                propagate = 1;
+                PropagatePublication(publication, pubURL);
+            }
 
             SendPublication(publication, pubURL, publishers[pubURL]);
         }
@@ -234,8 +241,9 @@ namespace SESDAD
             //check if Broker is tree root
             if (fatherBroker != null)
             {
+                Console.WriteLine("Father");
                 fatherBroker.ReceivePublication(publication, pubURL);
-                
+                Console.WriteLine("Father SEND");
                 PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                 PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
             }
@@ -244,8 +252,9 @@ namespace SESDAD
             {
                 foreach (BrokerInterface child in childBroker)
                 {
+                    Console.WriteLine("child");
                     child.ReceivePublication(publication, pubURL);
-
+                    Console.WriteLine("child send");
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
                 }
@@ -268,6 +277,7 @@ namespace SESDAD
                     }
                 }
             }
+            propagate = 0;
         }
 
     }
