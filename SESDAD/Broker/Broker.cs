@@ -13,8 +13,8 @@ namespace SESDAD
     public class Broker
     {
         private static int myPort;
-        internal static string myURL;
-        internal static string fatherURL;
+        internal static string myURL = null;
+        internal static string fatherURL = null;
         internal static List<string> childURLs;
         private string processname;
 
@@ -208,6 +208,7 @@ namespace SESDAD
                 fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBroker.AddChild(myURL);
             }
+            Console.WriteLine("added father");
         }
 
         //add a child broker to the list
@@ -218,34 +219,39 @@ namespace SESDAD
             {
                 childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
             }
+            Console.WriteLine("added child");
         }
 
         //method called by a publisher to publish a publication
         //or
         //method called by a child broker to propagate a publication
-        public void ReceivePublication(string publication, string pubURL)
+        public void ReceivePublication(string publication, string pubURL, string topic)
         {
+            Console.WriteLine("received publication");
             if (propagate == 0)
             {
                 propagate = 1;
-                PropagatePublication(publication, pubURL);
+                PropagatePublication(publication, pubURL, topic);
             }
 
-            SendPublication(publication, pubURL, publishers[pubURL]);
+            Console.WriteLine("making call for publication sending");
+            SendPublication(publication, pubURL, topic);
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
-        public void PropagatePublication(string publication, string pubURL)
+        public void PropagatePublication(string publication, string pubURL, string topic)
         {
             //check if Broker is tree root
             if (fatherBroker != null)
             {
                 Console.WriteLine("Father");
-                fatherBroker.ReceivePublication(publication, pubURL);
+                fatherBroker.ReceivePublication(publication, pubURL, topic);
                 Console.WriteLine("Father SEND");
+                Console.WriteLine("Started call for Log Update");
                 PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+                PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                Console.WriteLine("Ended call for Log Update");
             }
 
             if (childBroker != null)
@@ -253,10 +259,12 @@ namespace SESDAD
                 foreach (BrokerInterface child in childBroker)
                 {
                     Console.WriteLine("child");
-                    child.ReceivePublication(publication, pubURL);
+                    child.ReceivePublication(publication, pubURL, topic);
                     Console.WriteLine("child send");
+                    Console.WriteLine("Started call for Log Update");
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                    PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+                    PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                    Console.WriteLine("Finsihed call for Log Update");
                 }
             }
         }
@@ -265,6 +273,8 @@ namespace SESDAD
         //checks if any subscriber is intereted in the topic, and sends it to them if yes
         public void SendPublication(string publication, string pubURL, string publicationTopic)
         {
+
+            Console.WriteLine("sending publication to Subscriber");
             //See if any subscriber is interested in this publication
             foreach(String subscriber in subscribers.Keys)
             {
@@ -278,6 +288,7 @@ namespace SESDAD
                 }
             }
             propagate = 0;
+            Console.WriteLine("finished sending publication");
         }
 
     }

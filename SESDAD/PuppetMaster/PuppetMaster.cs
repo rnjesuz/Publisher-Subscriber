@@ -305,7 +305,7 @@ namespace SESDAD
             string process1Name;
             string process2Name;
 
-
+            Console.WriteLine("Received request for event Log");
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
             //we test all the tables to find the processname for the given URL (p1)
@@ -324,16 +324,18 @@ namespace SESDAD
 
             process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
 
-            if(PuppetMaster.Loglevel == 0)
+            if(PuppetMaster.Loglevel == 1)
             {
                 text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
             }
 
-            if (PuppetMaster.Loglevel != 0 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
+            if (PuppetMaster.Loglevel != 1 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
                 text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
             }
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
+            
+            Console.WriteLine("Starting Log of event: "+eventlabel);
             if (!File.Exists(path))
             {
                 File.Create(path);
@@ -347,6 +349,7 @@ namespace SESDAD
                 tw.WriteLine(text);
                 tw.Close();
             }
+            Console.WriteLine("Ending Log of event: " + eventlabel);
         }
     }
 }

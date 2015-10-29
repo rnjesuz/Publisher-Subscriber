@@ -86,7 +86,7 @@ namespace SESDAD
 
         public void ChangeTopic(string Topic)
         {
-            myTopic = Topic;
+            myTopic = "root/" + Topic;
             broker.ChangePublishTopic(myURL, Topic);
         }
 
@@ -95,7 +95,7 @@ namespace SESDAD
             PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
             PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
 
-            broker.ReceivePublication(publication, myURL);
+            broker.ReceivePublication(publication, myURL, myTopic);
         }
     }
 }
