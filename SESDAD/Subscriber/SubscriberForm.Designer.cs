@@ -33,6 +33,7 @@
             this.PublicationBox = new System.Windows.Forms.TextBox();
             this.UnsubBox = new System.Windows.Forms.TextBox();
             this.UnsubButton = new System.Windows.Forms.Button();
+            this.TopicListBox = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // SubscribeButton
@@ -55,7 +56,7 @@
             // 
             // PublicationBox
             // 
-            this.PublicationBox.Location = new System.Drawing.Point(13, 71);
+            this.PublicationBox.Location = new System.Drawing.Point(94, 71);
             this.PublicationBox.Multiline = true;
             this.PublicationBox.Name = "PublicationBox";
             this.PublicationBox.Size = new System.Drawing.Size(178, 178);
@@ -79,11 +80,21 @@
             this.UnsubButton.UseVisualStyleBackColor = true;
             this.UnsubButton.Click += new System.EventHandler(this.UnsubButton_Click);
             // 
+            // TopicListBox
+            // 
+            this.TopicListBox.Location = new System.Drawing.Point(12, 71);
+            this.TopicListBox.Multiline = true;
+            this.TopicListBox.Name = "TopicListBox";
+            this.TopicListBox.Size = new System.Drawing.Size(76, 178);
+            this.TopicListBox.TabIndex = 5;
+            this.TopicListBox.TextChanged += new System.EventHandler(this.TopicListBox_TextChanged);
+            // 
             // SubscriberForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Controls.Add(this.TopicListBox);
             this.Controls.Add(this.UnsubButton);
             this.Controls.Add(this.UnsubBox);
             this.Controls.Add(this.PublicationBox);
@@ -104,6 +115,7 @@
         private System.Windows.Forms.TextBox PublicationBox;
         private System.Windows.Forms.TextBox UnsubBox;
         private System.Windows.Forms.Button UnsubButton;
+        private System.Windows.Forms.TextBox TopicListBox;
     }
 }
 
