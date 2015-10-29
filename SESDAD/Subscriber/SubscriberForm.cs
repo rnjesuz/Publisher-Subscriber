@@ -18,6 +18,7 @@ namespace SESDAD
     {
         private RemoteSubscriber rs = new RemoteSubscriber();
         string topic;
+        List<string> subscriptions = new List<string>();
 
         public SubscriberForm()
         {
@@ -32,8 +33,13 @@ namespace SESDAD
         private void SubscribeButton_Click(object sender, EventArgs e)
         {
             topic = TopicBox.Text;
-
-            rs.AddSubscription(topic);
+            //if topic was already subscribed therse no need to subscribe again
+            if (!subscriptions.Contains(topic))
+            {
+                subscriptions.Add(topic);
+                TopicListBox.Text = string.Join("\r\n", subscriptions);
+                rs.AddSubscription(topic);
+            }
         }
 
         private void TopicBox_TextChanged(object sender, EventArgs e)
@@ -54,7 +60,18 @@ namespace SESDAD
         private void UnsubButton_Click(object sender, EventArgs e)
         {
             string topic = UnsubBox.Text;
-            rs.RemoveSubscription(topic);
+            //checks if the topic was ever subscribed to, before unsubing
+            if (subscriptions.Contains(topic))
+            {
+                subscriptions.Remove(topic);
+                TopicListBox.Text = string.Join("\r\n", subscriptions);
+                rs.RemoveSubscription(topic);
+            }
+        }
+
+        private void TopicListBox_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
