@@ -54,7 +54,7 @@ namespace SESDAD
 
         static void Main(string[] args)
         {
-            System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
+            //System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
 
             string directory = Directory.GetCurrentDirectory();
             File.WriteAllBytes(@"" + directory + "\\..\\..\\Log.txt", new byte[] { 0 });
@@ -103,9 +103,7 @@ namespace SESDAD
                                 {
                                     SiteToBroker.Add(parsedLine[5], parsedLine[7]);
                                     brokerTable.Add(parsedLine[1], parsedLine[7]);
-                                    /*Console.WriteLine(parsedLine[5]);
-                                    Console.WriteLine(parsedLine[7]);
-                                    Console.WriteLine(SiteToBroker[parsedLine[5]]);*/
+
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar

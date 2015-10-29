@@ -14,7 +14,8 @@ namespace SESDAD
     {
         private static int myPort;
         internal static string myURL;
-        private static string fatherURL;
+        internal static string fatherURL;
+        internal static List<string> childURLs;
         private string processname;
 
         /// <summary>
@@ -40,6 +41,9 @@ namespace SESDAD
             ChannelServices.RegisterChannel(channel, false);
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),"broker",WellKnownObjectMode.Singleton);
+
+            BrokerInterface rb =(BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+            rb.ConnectFatherBroker(fatherURL);
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -82,7 +86,7 @@ namespace SESDAD
         //Father node in the Broker Tree. CAN be NULL. root of the tree
         BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL. last leaf
-        BrokerInterface childBroker;
+        List<BrokerInterface> childBroker = new List<BrokerInterface>();
         //Url broker
         private string myURL = Broker.myURL;
 
@@ -194,11 +198,23 @@ namespace SESDAD
             }
         }
 
-        //get the port where remote fatherbroker is and conect to it
-        //TODO Get the URL also. localhost for testing only
-        public void ConnectFatherBroker(int port)
+        //conection to father url
+        public void ConnectFatherBroker(string url)
         {
-            fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), "tcp://localhost:"+ port +"/BrokerServer");
+            if (url != null){
+                fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+                fatherBroker.AddChild(myURL);
+            }
+        }
+
+        //add a child broker to the list
+        public void AddChild(string url)
+        {
+            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+            if (!(childBroker.Contains(bi)) && childBroker != null)
+            {
+                childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
+            }
         }
 
         //method called by a publisher to publish a publication
@@ -222,6 +238,17 @@ namespace SESDAD
                 
                 PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                 PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+            }
+
+            if (childBroker != null)
+            {
+                foreach (BrokerInterface child in childBroker)
+                {
+                    child.ReceivePublication(publication, pubURL);
+
+                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                    PM.UpdateEventLog("BroEvent", myURL, pubURL, publishers[pubURL]);
+                }
             }
         }
 

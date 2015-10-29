@@ -18,10 +18,11 @@ namespace SESDAD
         void RemoveSubscription(string subURL, string topic);
         void ConnectPublisher(string subURL);
         void ChangePublishTopic(string pubURL, string topic);
-        void ConnectFatherBroker(int port);
+        void ConnectFatherBroker(string url);
         void ReceivePublication(string publication, string pubURL);
         void PropagatePublication(string publication, string pubURL);
         void SendPublication(string publication, string pubURL, string publicationTopic);
+        void AddChild(string url);
     }
     
     public interface PublisherInterface
