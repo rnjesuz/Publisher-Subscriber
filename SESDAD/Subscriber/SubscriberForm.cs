@@ -18,7 +18,7 @@ namespace SESDAD
     {
         private RemoteSubscriber rs = new RemoteSubscriber();
         string topic;
-        List<string> subscriptions = new List<string>();
+        internal List<string> subscriptions = new List<string>();
 
         public SubscriberForm()
         {

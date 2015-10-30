@@ -143,6 +143,7 @@ namespace SESDAD
 
         public void RemoveSubscription(string subURL, string topic)
         {
+            Console.WriteLine("[RemoveSubscription]");
             //Verify if subURL is on the List
             if (subscribers.ContainsKey(subURL))
             {
@@ -175,6 +176,7 @@ namespace SESDAD
                 //TODO throw an exception to the subscriber
                 Console.WriteLine("There is no such Subscriber connected to this Broker");
             }
+            Console.WriteLine("-------------------------------");
         }
         
         public void ConnectPublisher(string pubURL)
@@ -208,7 +210,7 @@ namespace SESDAD
                 fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBroker.AddChild(myURL);
             }
-            Console.WriteLine("added father");
+            Console.WriteLine("Added father");
         }
 
         //add a child broker to the list
@@ -227,27 +229,30 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, string pubURL, string topic)
         {
-            Console.WriteLine("received publication");
+            Console.WriteLine("[ReceivePublication]");
             if (propagate == 0)
             {
                 propagate = 1;
                 PropagatePublication(publication, pubURL, topic);
             }
 
-            Console.WriteLine("making call for publication sending");
+            Console.WriteLine("Calling SendPublication");
             SendPublication(publication, pubURL, topic);
+            Console.WriteLine("[End of ReceivePublication]");
+            Console.WriteLine("-------------------------------");
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
         public void PropagatePublication(string publication, string pubURL, string topic)
         {
+            Console.WriteLine("[PropagatePublication]");
             //check if Broker is tree root
             if (fatherBroker != null)
             {
-                Console.WriteLine("Father");
+                Console.WriteLine("Propagating to father");
                 fatherBroker.ReceivePublication(publication, pubURL, topic);
-                Console.WriteLine("Father SEND");
+                Console.WriteLine("Propagated");
                 Console.WriteLine("Started call for Log Update");
                 PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                 PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
@@ -258,23 +263,25 @@ namespace SESDAD
             {
                 foreach (BrokerInterface child in childBroker)
                 {
-                    Console.WriteLine("child");
+                    Console.WriteLine("Propagating to child(s)");
                     child.ReceivePublication(publication, pubURL, topic);
-                    Console.WriteLine("child send");
+                    Console.WriteLine("Propagated");
                     Console.WriteLine("Started call for Log Update");
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
                     Console.WriteLine("Finsihed call for Log Update");
                 }
             }
+            Console.WriteLine("[End of PropagatePublication]");
+            Console.WriteLine("-------------------------------");
         }
 
         //method used to send the publication to one or several subscribers of the broker
         //checks if any subscriber is intereted in the topic, and sends it to them if yes
         public void SendPublication(string publication, string pubURL, string publicationTopic)
         {
-
-            Console.WriteLine("sending publication to Subscriber");
+            Console.WriteLine("[SenPublication]");
+            Console.WriteLine("Sending publication to Subscribers");
             //See if any subscriber is interested in this publication
             foreach(String subscriber in subscribers.Keys)
             {
@@ -288,13 +295,57 @@ namespace SESDAD
                 }
             }
             propagate = 0;
-            Console.WriteLine("finished sending publication");
+            Console.WriteLine("Finished sending publication");
+            Console.WriteLine("[End of SendPublication]");
+            Console.WriteLine("-------------------------------");
         }
 
         public void Kill()
         {
+            Console.WriteLine("[Kill]");
+            Console.WriteLine("killing... RIP");
             Application.Exit();
         }
 
+        //calls for a status report on every node linked to himself. brokers subs and publishers
+        public void StatusUpdate()
+        {
+            Console.WriteLine("[Status Broker]");
+            Console.WriteLine("I'm alive at: " + myURL);
+            Console.WriteLine("Presumed alive subscribers are: ");
+            foreach(string sub in subscribers.Keys) {
+                Console.WriteLine(sub);
+            }
+            //call for status report of the subs
+            foreach(string sub in subscribers.Keys)
+            {
+                SubscriberInterface Subscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), sub);
+                Subscriber.StatusUpdate();
+            }
+            Console.WriteLine("Presumed alive publishers are: ");
+            foreach(string pub in publishers.Keys)
+            {
+                Console.WriteLine(pub);
+            }
+            //call for status report of the pubs
+            foreach(string pub in publishers.Keys)
+            {
+                PublisherInterface Publisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pub);
+                Publisher.StatusUpdate();
+            }
+            
+            //call for status report on child nodes
+            //call starts on the root of the Broker-Tree and propagates downwards
+            if (childBroker != null)
+            {
+                Console.WriteLine("I have " + childBroker.Count + " child Nodes");
+                foreach (BrokerInterface bi in childBroker)
+                {
+                    bi.StatusUpdate();
+                }
+            }
+            Console.WriteLine("[End of Status Report]");
+            Console.WriteLine("-------------------------------");
+        }
     }
 }

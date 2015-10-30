@@ -160,6 +160,19 @@ namespace SESDAD
                 System.Console.WriteLine("Could not locate Broker");
             }
         }
+
+        //gives a status report on the node
+        //this includes saying its alive and the current subscriptions
+        public void StatusUpdate()
+        {
+            Console.WriteLine("[Subscriber Status]");
+            Console.WriteLine("I'm alive at: " + myURL);
+            Console.WriteLine("My subscriptions are:");
+            foreach(string topic in form.subscriptions)
+            {
+                Console.WriteLine(topic);
+            }
+        }
     }
 
 

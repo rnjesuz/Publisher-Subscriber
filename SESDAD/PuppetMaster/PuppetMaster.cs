@@ -27,7 +27,7 @@ namespace SESDAD
         static bool active = true;
 
         //HashTable with the the sites and it's parents <site,parent>
-        static Dictionary<string, string> siteTree = new Dictionary<string, string>();
+        static internal Dictionary<string, string> siteTree = new Dictionary<string, string>();
 
         //HashTable with the the brokers and it's URL. <brokers, URL>
         static internal Dictionary<string, string> brokerTable = new Dictionary<string, string>();
@@ -38,9 +38,9 @@ namespace SESDAD
         //HashTable with the the subsribers and it's URL. <subsribers, URL>
         static internal Dictionary<string, string> subscriberTable = new Dictionary<string, string>();
 
-        //Dictionary from ints to string. the int is the abstraction of the site number. the string is the URL of the site broker
+        //Dictionary from string to string. the 1st string sitename. the 2nd string is the URL of the site's broker
         //By arquitecture rule which site has a broker and its only 1.
-        static Dictionary<string, string> SiteToBroker = new Dictionary<string, string>();
+        static internal Dictionary<string, string> SiteToBroker = new Dictionary<string, string>();
 
         //boolean for the event routing .  0 = FLOODING, 1 = FILTER; Default is FLOODING
         static int eventRouting = 0;
@@ -255,7 +255,7 @@ namespace SESDAD
                     }
                     break;
                 case "Status":
-                    //TODO print system status
+                    remotePM.StatusUpdate();
                     break;
                 case "Crash":
                     processname = inputParsed.ElementAt(1);
@@ -303,6 +303,8 @@ namespace SESDAD
         private string text;
         string directory = Directory.GetCurrentDirectory();
 
+        //HashTable with the the sites and it's parents <site,parent>
+        static internal Dictionary<string, string> siteTree = PuppetMaster.siteTree;
         //HashTable with the the brokers and it's URL. <brokers, URL>
         private Dictionary<string, string> brokerTable = PuppetMaster.brokerTable;
         //HashTable with the the publishers and it's URL. <publishers, URL>
@@ -426,6 +428,18 @@ namespace SESDAD
             try {
                 pub.Kill();
             }catch(System.Net.Sockets.SocketException) { }
+        }
+
+        //calls for a system-wide status report
+        //starts on the root of the broker-tree
+        //propagation is guaranteed by the nodes.
+        public void StatusUpdate()
+        {
+            string sitename = siteTree.FirstOrDefault(x => x.Value.Contains("none")).Key;
+            string brokerURL = PuppetMaster.SiteToBroker[sitename];
+            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
+            bi.StatusUpdate();
+
         }
     }
 }

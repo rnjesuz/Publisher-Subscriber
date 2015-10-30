@@ -102,5 +102,14 @@ namespace SESDAD
         {
             Application.Exit();
         }
+
+        //gives a status report on the node
+        //this includes saying its alive and the current publishing topic
+        public void StatusUpdate()
+        {
+            Console.WriteLine("[Status Publisher]");
+            Console.WriteLine("I'm alive at: " + myURL);
+            Console.WriteLine("My current publishing topic is: " + myTopic);
+        }
     }
 }

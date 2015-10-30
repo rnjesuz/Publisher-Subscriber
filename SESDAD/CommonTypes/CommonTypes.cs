@@ -24,6 +24,7 @@ namespace SESDAD
         void SendPublication(string publication, string pubURL, string publicationTopic);
         void AddChild(string url);
         void Kill();
+        void StatusUpdate();
     }
     
     public interface PublisherInterface
@@ -31,6 +32,7 @@ namespace SESDAD
         void ChangeTopic(string topic);
         void SendPublication(string publication);
         void Kill();
+        void StatusUpdate();
 
     }
     public interface SubscriberInterface
@@ -41,6 +43,7 @@ namespace SESDAD
         void RemoveSubscription(string topic);
         void RemoveSubscriptionRemote(string topic);
         void Kill();
+        void StatusUpdate();
     }
 
     public interface PMInterface
@@ -52,5 +55,6 @@ namespace SESDAD
         void KillBroker(string URL);
         void KillSubscriber(string URL);
         void KillPublisher(string URL);
+        void StatusUpdate();
     }
 }
