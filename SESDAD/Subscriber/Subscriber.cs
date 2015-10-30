@@ -103,7 +103,7 @@ namespace SESDAD
             Console.WriteLine("finished receiving publication for my subscription");
         }
 
-        internal void AddSubscription(string topic)
+        public void AddSubscription(string topic)
         {
             try
             {
@@ -115,7 +115,7 @@ namespace SESDAD
             }
         }
 
-        internal void RemoveSubscription(string topic)
+        public void RemoveSubscription(string topic)
         {
             try
             {
@@ -125,6 +125,11 @@ namespace SESDAD
             {
                 System.Console.WriteLine("Could not locate Broker");
             }
+        }
+
+        public void Kill()
+        {
+            Application.Exit();
         }
     }
 

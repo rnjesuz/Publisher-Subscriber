@@ -218,23 +218,27 @@ namespace SESDAD
         private static void ExecuteCommand(List<string> inputParsed)
         {
             firstToken = inputParsed.First();
-            thirdToken = inputParsed.ElementAt(2);
+           
+            PMInterface remotePM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
 
             //verify user input and act if valid
             switch (firstToken)
             {
                 case "Subscriber":
+                    thirdToken = inputParsed.ElementAt(2);
                     switch (thirdToken)
                     {
                         case "Subscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
                             //TODO subscribe process to topic
+                            remotePM.SendSubscribeOrder(subscriberTable[processname], topicname);
                             break;
                         case "Unsubscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
                             //TODO unsubscribe process from topic
+                            remotePM.SendUnsubscribeOrder(subscriberTable[processname], topicname);
                             break;
                     }
                     break;
@@ -242,9 +246,12 @@ namespace SESDAD
                     //check if input if of type: Publisher p Publish n Ontopic t Interval x
                     if (thirdToken.Equals("Publish") && inputParsed.ElementAt(4).Equals("Ontopic") && inputParsed.ElementAt(6).Equals("Interval"))
                     {
-                        numberofevents = Int32.Parse(inputParsed.ElementAt(5));
+                        processname = inputParsed.ElementAt(1);
+                        topicname = inputParsed.ElementAt(5);
+                        numberofevents = Int32.Parse(inputParsed.ElementAt(3));
                         sleepInterval = Int32.Parse(inputParsed.ElementAt(7));
                         //TODO do publishing event with needed protocol
+                        remotePM.SendPublishOrder(publisherTable[processname], processname, topicname, numberofevents, sleepInterval);
                     }
                     break;
                 case "Status":
@@ -253,6 +260,18 @@ namespace SESDAD
                 case "Crash":
                     processname = inputParsed.ElementAt(1);
                     //TODO crash a node. Use SIGKILL??
+                    if (processname.Contains("broker"))
+                    {
+                        remotePM.KillBroker(brokerTable[processname]);
+                    }
+                    else if (processname.Contains("subscriber"))
+                    {
+                        remotePM.KillSubscriber(subscriberTable[processname]);
+                    }
+                    else if (processname.Contains("publisher"))
+                    {
+                        remotePM.KillPublisher(publisherTable[processname]);
+                    }
                     break;
                 case "Freeze":
                     processname = inputParsed.ElementAt(1);
@@ -265,6 +284,7 @@ namespace SESDAD
                 case "Wait":
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
                     //TODO go sleep. how do u auto sleep?
+                    System.Threading.Thread.Sleep(sleepInterval);
                     break;
                 case "Quit":
                     active = false;
@@ -350,6 +370,62 @@ namespace SESDAD
                 tw.Close();
             }
             Console.WriteLine("Ending Log of event: " + eventlabel);
+        }
+
+        public void SendSubscribeOrder(String subURL, string topic)
+        {
+            SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
+            sub.AddSubscription(topic);
+        }
+
+        public void SendUnsubscribeOrder(String subURL, string topic)
+        {
+            SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
+            sub.RemoveSubscription(topic);
+        }
+
+        public void SendPublishOrder(string pubURL, string processName, string topicname, int numberofevents, int sleepInterval)
+        {
+            PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pubURL);
+            int sequenceNumber = 0;
+            pub.ChangeTopic(topicname);
+            for (int i = 0; i< numberofevents; i++)
+            {
+                sequenceNumber += 1;
+                if(sequenceNumber % 2 == 0) { System.Threading.Thread.Sleep(sleepInterval); }
+                pub.SendPublication("Publisher: " + processName + "; event " + sequenceNumber);
+            }
+        }
+
+        public void KillBroker(string URL)
+        {
+
+            BrokerInterface bk = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), URL);
+            try
+            {
+                bk.Kill();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void KillSubscriber(string URL)
+        {
+
+            SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), URL);
+            try
+            {
+                sub.Kill();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void KillPublisher(string URL)
+        {
+
+            PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), URL);
+            try {
+                pub.Kill();
+            }catch(System.Net.Sockets.SocketException) { }
         }
     }
 }

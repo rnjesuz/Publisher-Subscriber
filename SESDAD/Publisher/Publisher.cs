@@ -97,5 +97,10 @@ namespace SESDAD
 
             broker.ReceivePublication(publication, myURL, myTopic);
         }
+
+        public void Kill()
+        {
+            Application.Exit();
+        }
     }
 }

@@ -23,20 +23,32 @@ namespace SESDAD
         void PropagatePublication(string publication, string pubURL, string topic);
         void SendPublication(string publication, string pubURL, string publicationTopic);
         void AddChild(string url);
+        void Kill();
     }
     
     public interface PublisherInterface
     {
         void ChangeTopic(string topic);
         void SendPublication(string publication);
+        void Kill();
+
     }
     public interface SubscriberInterface
     {
         void ReceivePublication(string publication, string pubURL, string pubTopic);
+        void AddSubscription(string topic);
+        void RemoveSubscription(string topic);
+        void Kill();
     }
 
     public interface PMInterface
     {
         void UpdateEventLog(string eventlabel, string p1, string p2, string topicname);
+        void SendSubscribeOrder(String subURL, string topic);
+        void SendUnsubscribeOrder(String subURL, string topic);
+        void SendPublishOrder(String pubURL, string processName, string topicname, int numberofevents, int sleepInterval);
+        void KillBroker(string URL);
+        void KillSubscriber(string URL);
+        void KillPublisher(string URL);
     }
 }

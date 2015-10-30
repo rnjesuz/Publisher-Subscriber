@@ -291,5 +291,10 @@ namespace SESDAD
             Console.WriteLine("finished sending publication");
         }
 
+        public void Kill()
+        {
+            Application.Exit();
+        }
+
     }
 }
