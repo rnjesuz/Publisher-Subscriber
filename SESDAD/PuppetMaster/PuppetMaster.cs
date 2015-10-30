@@ -381,7 +381,7 @@ namespace SESDAD
         public void SendUnsubscribeOrder(String subURL, string topic)
         {
             SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
-            sub.RemoveSubscription(topic);
+            sub.RemoveSubscriptionRemote(topic);
         }
 
         public void SendPublishOrder(string pubURL, string processName, string topicname, int numberofevents, int sleepInterval)
