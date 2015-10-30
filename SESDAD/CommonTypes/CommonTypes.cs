@@ -37,6 +37,7 @@ namespace SESDAD
     {
         void ReceivePublication(string publication, string pubURL, string pubTopic);
         void AddSubscription(string topic);
+        void AddSubscriptionRemote(string topic);
         void RemoveSubscription(string topic);
         void Kill();
     }

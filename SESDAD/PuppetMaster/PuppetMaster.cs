@@ -375,7 +375,7 @@ namespace SESDAD
         public void SendSubscribeOrder(String subURL, string topic)
         {
             SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
-            sub.AddSubscription(topic);
+            sub.AddSubscriptionRemote(topic);
         }
 
         public void SendUnsubscribeOrder(String subURL, string topic)

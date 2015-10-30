@@ -85,6 +85,7 @@ namespace SESDAD
 
 
     delegate void DelegateReceivePublication(string message);
+    delegate void DelegateAddSubscriptionRemote(string message);
 
     public class RemoteSubscriber : MarshalByRefObject, SubscriberInterface
     {
@@ -130,6 +131,19 @@ namespace SESDAD
         public void Kill()
         {
             Application.Exit();
+        }
+
+        public void AddSubscriptionRemote(string topic)
+        {
+            try
+            {
+                broker.AddSubscription(myURL, topic);
+                form.Invoke(new DelegateAddSubscriptionRemote(form.UpdatePTopics), topic);
+            }
+            catch (SocketException)
+            {
+
+            }
         }
     }
 

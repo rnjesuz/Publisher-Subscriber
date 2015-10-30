@@ -73,5 +73,11 @@ namespace SESDAD
         {
 
         }
+
+        internal void UpdatePTopics(string message)
+        {
+            subscriptions.Add(topic);
+            TopicListBox.Text = string.Join("\r\n", subscriptions);
+        }
     }
 }
