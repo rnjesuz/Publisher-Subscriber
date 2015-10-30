@@ -96,96 +96,131 @@ namespace SESDAD
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 
-        static Semaphore sem = new Semaphore(1, 1);
+        //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
+        private int isFreeze = 0;
+
+        //List of functions to call when the process is unfreezed
+        private List<Action> functions = new List<Action>();
 
         public void ReceivePublication(string publication, string pubURL, string pubTopic)
         {
-            Console.WriteLine("received publication for my subscription");
-            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-            PM.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
+            if (isFreeze == 0)
+            {
+                Console.WriteLine("received publication for my subscription");
+                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
 
-            form.Invoke(new DelegateReceivePublication(form.UpdatePublication), publication);
+                form.Invoke(new DelegateReceivePublication(form.UpdatePublication), publication);
 
-            Console.WriteLine("finished receiving publication for my subscription");
+                Console.WriteLine("finished receiving publication for my subscription");
+            }
+            else { functions.Add(() => this.ReceivePublication(publication, pubURL,  pubTopic)); }
         }
 
         public void AddSubscription(string topic)
         {
-            try
+            if (isFreeze == 0)
             {
-                broker.AddSubscription(myURL, topic);
+                try
+                {
+                    broker.AddSubscription(myURL, topic);
+                }
+                catch (SocketException)
+                {
+
+                }
             }
-            catch (SocketException)
-            {
-                
-            }
+            else { functions.Add(() => this.AddSubscription(topic)); }
         }
 
         public void RemoveSubscription(string topic)
         {
-            try
+            if (isFreeze == 0)
             {
-                broker.RemoveSubscription(myURL, topic);
+                try
+                {
+                    broker.RemoveSubscription(myURL, topic);
+                }
+                catch (SocketException)
+                {
+                    System.Console.WriteLine("Could not locate Broker");
+                }
             }
-            catch(SocketException)
-            {
-                System.Console.WriteLine("Could not locate Broker");
-            }
+            else { functions.Add(() => this.RemoveSubscription(topic)); }
         }
 
         public void Kill()
         {
-            Application.Exit();
+            if (isFreeze == 0)
+            {
+                Application.Exit();
+            }
+            else { functions.Add(() => this.Kill()); }
         }
 
         public void Freeze()
         {
-
-            sem.WaitOne();
+            isFreeze = 1;
         }
-
         public void Unfreeze()
         {
-            sem.Release();
+            isFreeze = 0;
+            foreach (var function in functions)
+            {
+                function.Invoke();
+            }
+            functions.Clear();
         }
 
         public void AddSubscriptionRemote(string topic)
         {
-            try
+            if (isFreeze == 0)
             {
-                broker.AddSubscription(myURL, topic);
-                form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
-            }
-            catch (SocketException)
-            {
+                try
+                {
+                    broker.AddSubscription(myURL, topic);
+                    form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
+                }
+                catch (SocketException)
+                {
 
+                }
             }
+            else { functions.Add(() => this.AddSubscriptionRemote(topic)); }
         }
 
         public void RemoveSubscriptionRemote(string topic)
         {
-            try
+            if (isFreeze == 0)
             {
-                broker.RemoveSubscription(myURL, topic);
-                form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
+                try
+                {
+                    broker.RemoveSubscription(myURL, topic);
+                    form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
+                }
+                catch (SocketException)
+                {
+                    System.Console.WriteLine("Could not locate Broker");
+                }
             }
-            catch (SocketException)
-            {
-                System.Console.WriteLine("Could not locate Broker");
-            }
+            else { functions.Add(() => this.RemoveSubscriptionRemote(topic)); }
         }
 
         //gives a status report on the node
         //this includes saying its alive and the current subscriptions
         public void StatusUpdate()
         {
-            Console.WriteLine("[Subscriber Status]");
-            Console.WriteLine("I'm alive at: " + myURL);
-            Console.WriteLine("My subscriptions are:");
-            foreach(string topic in form.subscriptions)
+            if (isFreeze == 0)
             {
-                Console.WriteLine(topic);
+                Console.WriteLine("[Subscriber Status]");
+                Console.WriteLine("I'm alive at: " + myURL);
+                Console.WriteLine("My subscriptions are:");
+                foreach (string topic in form.subscriptions)
+                {
+                    Console.WriteLine(topic);
+                }
             }
+            else { functions.Add(() => this.StatusUpdate()); }
         }
     }
 

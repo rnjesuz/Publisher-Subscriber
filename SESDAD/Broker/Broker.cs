@@ -77,7 +77,7 @@ namespace SESDAD
         }
     }
 
-    class RemoteBroker: MarshalByRefObject, BrokerInterface
+    class RemoteBroker : MarshalByRefObject, BrokerInterface
     {
         //Dictionary of every publisher connected to this Broker and his topic 
         Dictionary<string, string> publishers = new Dictionary<string, string>();
@@ -93,120 +93,144 @@ namespace SESDAD
         // 0 did NOT porpagate yet; 1 already porpagate
         private int propagate = 0;
 
-        internal static Semaphore sem = new Semaphore(1, 1);
-        WaitHandle[] handle = new WaitHandle[] { sem };
+        //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
+        private int isFreeze = 0;
+
+        //List of functions to call when the process is unfreezed
+        private List<Action> functions = new List<Action>();
+
 
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
         {
-            //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
-            List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
-            auxlist.Add("root");
-            subscribers.Add(subURL, auxlist);
-            System.Console.WriteLine("Subscriber at: "+subURL+ " connected");
+            if (isFreeze == 0)
+            {
+                //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
+                List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
+                auxlist.Add("root");
+                subscribers.Add(subURL, auxlist);
+                System.Console.WriteLine("Subscriber at: " + subURL + " connected");
+            }
+            else { functions.Add(() => this.ConnectSubscriber(subURL)); }
         }
 
         public void AddSubscription(string subURL, string subscription)
         {
             /*Verify if subURL is on the List*/
-            if (subscribers.ContainsKey(subURL))
+            if (isFreeze == 0)
             {
-                /*Verify if already subscribed to topic*/
-                if (!subscribers[subURL].Contains("root/" + subscription))
+                if (subscribers.ContainsKey(subURL))
                 {
-                    /*Verify if Subscribers first subscription*/
-                    if (subscribers[subURL].Count == 1 && subscribers[subURL].Contains("root"))
+                    /*Verify if already subscribed to topic*/
+                    if (!subscribers[subURL].Contains("root/" + subscription))
                     {
-                        /*eliminate root entry, so no errors*/
-                        subscribers[subURL].Clear();
-                        subscribers[subURL].Add("root/" + subscription);
-                        System.Console.WriteLine(subURL + " subscribed to: " + subscription);
+                        /*Verify if Subscribers first subscription*/
+                        if (subscribers[subURL].Count == 1 && subscribers[subURL].Contains("root"))
+                        {
+                            /*eliminate root entry, so no errors*/
+                            subscribers[subURL].Clear();
+                            subscribers[subURL].Add("root/" + subscription);
+                            System.Console.WriteLine(subURL + " subscribed to: " + subscription);
 
+                        }
+                        else
+                        {
+                            /*if not the first subscription, do this*/
+                            subscribers[subURL].Add("root/" + subscription);
+                            System.Console.WriteLine(subURL + " subscribed to: " + subscription);
+                        }
                     }
                     else
                     {
-                        /*if not the first subscription, do this*/
-                        subscribers[subURL].Add("root/" + subscription);
-                        System.Console.WriteLine(subURL + " subscribed to: " + subscription);
-                    }
-                }
-                else
-                {
-                    System.Console.WriteLine(subURL + " already subscribed to " + subscription);
-                }
-            }
-            else
-            {
-                //TODO throw an exception to the subscriber
-                Console.WriteLine("There is no such Subscriber connected to this Broker");
-            }
-        }
-
-        public void RemoveSubscription(string subURL, string topic)
-        {
-            Console.WriteLine("[RemoveSubscription]");
-            //Verify if subURL is on the List
-            if (subscribers.ContainsKey(subURL))
-            {
-                //Verify subscriber is subscribed to topic
-                if (subscribers[subURL].Contains("root/"+topic))
-                {
-                    //Verify if only sub -> implement defaul root
-                    if (subscribers[subURL].Count == 1)
-                    {
-                        //remove only topic establish default root
-                        subscribers[subURL].Clear();
-                        subscribers[subURL].Add("root");
-                        Console.WriteLine(topic + " removed from " + subURL);
-                    }
-                    else
-                    {
-                        //Normal remove of topic
-                        subscribers[subURL].Remove("root/" + topic);
-                        Console.WriteLine(topic+" removed from " + subURL);
+                        System.Console.WriteLine(subURL + " already subscribed to " + subscription);
                     }
                 }
                 else
                 {
                     //TODO throw an exception to the subscriber
-                    Console.WriteLine("There is no such topic");
+                    Console.WriteLine("There is no such Subscriber connected to this Broker");
                 }
             }
-            else
-            {
-                //TODO throw an exception to the subscriber
-                Console.WriteLine("There is no such Subscriber connected to this Broker");
-            }
-            Console.WriteLine("-------------------------------");
+            else { functions.Add(() => this.AddSubscription(subURL, subscription)); }
         }
-        
+
+        public void RemoveSubscription(string subURL, string topic)
+        {
+            if (isFreeze == 0)
+            {
+                Console.WriteLine("[RemoveSubscription]");
+                //Verify if subURL is on the List
+                if (subscribers.ContainsKey(subURL))
+                {
+                    //Verify subscriber is subscribed to topic
+                    if (subscribers[subURL].Contains("root/" + topic))
+                    {
+                        //Verify if only sub -> implement defaul root
+                        if (subscribers[subURL].Count == 1)
+                        {
+                            //remove only topic establish default root
+                            subscribers[subURL].Clear();
+                            subscribers[subURL].Add("root");
+                            Console.WriteLine(topic + " removed from " + subURL);
+                        }
+                        else
+                        {
+                            //Normal remove of topic
+                            subscribers[subURL].Remove("root/" + topic);
+                            Console.WriteLine(topic + " removed from " + subURL);
+                        }
+                    }
+                    else
+                    {
+                        //TODO throw an exception to the subscriber
+                        Console.WriteLine("There is no such topic");
+                    }
+                }
+                else
+                {
+                    //TODO throw an exception to the subscriber
+                    Console.WriteLine("There is no such Subscriber connected to this Broker");
+                }
+                Console.WriteLine("-------------------------------");
+            }
+            else { functions.Add(() => this.RemoveSubscription(subURL, topic)); }
+        }
+
         public void ConnectPublisher(string pubURL)
         {
-            //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
-
-            publishers.Add(pubURL, "root");
-            Console.WriteLine("Publisher at: "+pubURL+" connected");
+            if (isFreeze == 0)
+            {
+                //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
+                publishers.Add(pubURL, "root");
+                Console.WriteLine("Publisher at: " + pubURL + " connected");
+            }
+            else { functions.Add(() => this.ConnectPublisher(pubURL)); }
         }
 
         //change the topic to which a publisher will write
         public void ChangePublishTopic(string pubURL, string topic)
         {
-            if (publishers.ContainsKey(pubURL))
+            if (isFreeze == 0)
             {
-                publishers[pubURL]="root/"+ topic;
-                Console.WriteLine(pubURL+" publishing to: " + topic);
+                if (publishers.ContainsKey(pubURL))
+                {
+                    publishers[pubURL] = "root/" + topic;
+                    Console.WriteLine(pubURL + " publishing to: " + topic);
+                }
+                else
+                {
+                    //TODO trow and exception to the publisher
+                    Console.WriteLine("There is no such Publisher connected to this Broker");
+                }
             }
-            else
-            {
-                //TODO trow and exception to the publisher
-                Console.WriteLine("There is no such Publisher connected to this Broker");
-            }
+            else { functions.Add(() => this.ChangePublishTopic(pubURL, topic)); }
         }
 
         //conection to father url
         public void ConnectFatherBroker(string url)
         {
-            if (url != null){
+            if (url != null)
+            {
                 fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBroker.AddChild(myURL);
             }
@@ -229,134 +253,159 @@ namespace SESDAD
         //method called by a child broker to propagate a publication
         public void ReceivePublication(string publication, string pubURL, string topic)
         {
-            Console.WriteLine("[ReceivePublication]");
-            if (propagate == 0)
+            if (isFreeze == 0)
             {
-                propagate = 1;
-                PropagatePublication(publication, pubURL, topic);
-            }
+                Console.WriteLine("[ReceivePublication]");
+                if (propagate == 0)
+                {
+                    propagate = 1;
+                    PropagatePublication(publication, pubURL, topic);
+                }
 
-            Console.WriteLine("Calling SendPublication");
-            SendPublication(publication, pubURL, topic);
-            Console.WriteLine("[End of ReceivePublication]");
-            Console.WriteLine("-------------------------------");
+                Console.WriteLine("Calling SendPublication");
+                SendPublication(publication, pubURL, topic);
+                Console.WriteLine("[End of ReceivePublication]");
+                Console.WriteLine("-------------------------------");
+            }
+            else { functions.Add(() => this.ReceivePublication(publication, pubURL, topic)); }
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
         public void PropagatePublication(string publication, string pubURL, string topic)
         {
-            Console.WriteLine("[PropagatePublication]");
-            //check if Broker is tree root
-            if (fatherBroker != null)
+            if (isFreeze == 0)
             {
-                Console.WriteLine("Propagating to father");
-                fatherBroker.ReceivePublication(publication, pubURL, topic);
-                Console.WriteLine("Propagated");
-                Console.WriteLine("Started call for Log Update");
-                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                Console.WriteLine("Ended call for Log Update");
-            }
-
-            if (childBroker != null)
-            {
-                foreach (BrokerInterface child in childBroker)
+                Console.WriteLine("[PropagatePublication]");
+                //check if Broker is tree root
+                if (fatherBroker != null)
                 {
-                    Console.WriteLine("Propagating to child(s)");
-                    child.ReceivePublication(publication, pubURL, topic);
+                    Console.WriteLine("Propagating to father");
+                    fatherBroker.ReceivePublication(publication, pubURL, topic);
                     Console.WriteLine("Propagated");
                     Console.WriteLine("Started call for Log Update");
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                    Console.WriteLine("Finsihed call for Log Update");
+                    Console.WriteLine("Ended call for Log Update");
                 }
+
+                if (childBroker != null)
+                {
+                    foreach (BrokerInterface child in childBroker)
+                    {
+                        Console.WriteLine("Propagating to child(s)");
+                        child.ReceivePublication(publication, pubURL, topic);
+                        Console.WriteLine("Propagated");
+                        Console.WriteLine("Started call for Log Update");
+                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                        PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                        Console.WriteLine("Finsihed call for Log Update");
+                    }
+                }
+                Console.WriteLine("[End of PropagatePublication]");
+                Console.WriteLine("-------------------------------");
             }
-            Console.WriteLine("[End of PropagatePublication]");
-            Console.WriteLine("-------------------------------");
+            else { functions.Add(() => this.PropagatePublication(publication, pubURL, topic)); }
         }
 
         //method used to send the publication to one or several subscribers of the broker
         //checks if any subscriber is intereted in the topic, and sends it to them if yes
         public void SendPublication(string publication, string pubURL, string publicationTopic)
         {
-            Console.WriteLine("[SenPublication]");
-            Console.WriteLine("Sending publication to Subscribers");
-            //See if any subscriber is interested in this publication
-            foreach(String subscriber in subscribers.Keys)
+            if (isFreeze == 0)
             {
-                foreach (String topic in subscribers[subscriber])
+                Console.WriteLine("[SenPublication]");
+                Console.WriteLine("Sending publication to Subscribers");
+                //See if any subscriber is interested in this publication
+                foreach (String subscriber in subscribers.Keys)
                 {
-                    if (publicationTopic.Contains(topic))
+                    foreach (String topic in subscribers[subscriber])
                     {
-                        SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
-                        newSubscriber.ReceivePublication(publication, pubURL, publicationTopic);
+                        if (publicationTopic.Contains(topic))
+                        {
+                            SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
+                            newSubscriber.ReceivePublication(publication, pubURL, publicationTopic);
+                        }
                     }
                 }
+                propagate = 0;
+                Console.WriteLine("Finished sending publication");
+                Console.WriteLine("[End of SendPublication]");
+                Console.WriteLine("-------------------------------");
             }
-            propagate = 0;
-            Console.WriteLine("Finished sending publication");
-            Console.WriteLine("[End of SendPublication]");
-            Console.WriteLine("-------------------------------");
+            else { functions.Add(() => this.SendPublication(publication, pubURL, publicationTopic)); }
         }
 
         public void Kill()
         {
-            Console.WriteLine("[Kill]");
-            Console.WriteLine("killing... RIP");
-            Application.Exit();
+            if (isFreeze == 0)
+            {
+                Console.WriteLine("[Kill]");
+                Console.WriteLine("killing... RIP");
+                Application.Exit();
+            }
+            else { functions.Add(() => this.Kill()); }
         }
 
         public void Freeze()
         {
-            sem.WaitOne();
+            isFreeze = 1;
         }
         public void Unfreeze()
         {
-            WaitHandle.WaitAny(handle);
-            sem.Release();
+            isFreeze = 0;
+            foreach (var function in functions)
+            {
+                function.Invoke();
+            }
+            functions.Clear();
         }
 
         //calls for a status report on every node linked to himself. brokers subs and publishers
         public void StatusUpdate()
         {
-            Console.WriteLine("[Status Broker]");
-            Console.WriteLine("I'm alive at: " + myURL);
-            Console.WriteLine("Presumed alive subscribers are: ");
+            if (isFreeze == 0)
+            {
+                Console.WriteLine("[Status Broker]");
+                Console.WriteLine("I'm alive at: " + myURL);
+                Console.WriteLine("Presumed alive subscribers are: ");
 
-            foreach (string sub in subscribers.Keys) {
-                Console.WriteLine(sub);
-            }
-            //call for status report of the subs
-            foreach(string sub in subscribers.Keys)
-            {
-                SubscriberInterface Subscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), sub);
-                Subscriber.StatusUpdate();
-            }
-            Console.WriteLine("Presumed alive publishers are: ");
-            foreach(string pub in publishers.Keys)
-            {
-                Console.WriteLine(pub);
-            }
-            //call for status report of the pubs
-            foreach(string pub in publishers.Keys)
-            {
-                PublisherInterface Publisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pub);
-                Publisher.StatusUpdate();
-            }
-            
-            //call for status report on child nodes
-            //call starts on the root of the Broker-Tree and propagates downwards
-            if (childBroker != null)
-            {
-                Console.WriteLine("I have " + childBroker.Count + " child Nodes");
-                foreach (BrokerInterface bi in childBroker)
+                foreach (string sub in subscribers.Keys)
                 {
-                    bi.StatusUpdate();
+                    Console.WriteLine(sub);
                 }
+                //call for status report of the subs
+                foreach (string sub in subscribers.Keys)
+                {
+                    SubscriberInterface Subscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), sub);
+                    Subscriber.StatusUpdate();
+                }
+                Console.WriteLine("Presumed alive publishers are: ");
+                foreach (string pub in publishers.Keys)
+                {
+                    Console.WriteLine(pub);
+                }
+                //call for status report of the pubs
+                foreach (string pub in publishers.Keys)
+                {
+                    PublisherInterface Publisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pub);
+                    Publisher.StatusUpdate();
+                }
+
+                //call for status report on child nodes
+                //call starts on the root of the Broker-Tree and propagates downwards
+                if (childBroker != null)
+                {
+                    Console.WriteLine("I have " + childBroker.Count + " child Nodes");
+                    foreach (BrokerInterface bi in childBroker)
+                    {
+                        bi.StatusUpdate();
+                    }
+                }
+                Console.WriteLine("[End of Status Report]");
+                Console.WriteLine("-------------------------------");
             }
-            Console.WriteLine("[End of Status Report]");
-            Console.WriteLine("-------------------------------");
+            else { functions.Add(() => this.StatusUpdate() ); }
         }
     }
 }

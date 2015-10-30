@@ -85,45 +85,68 @@ namespace SESDAD
         private string myURL = Publisher.myURL;
         string myTopic;
 
-        static Semaphore sem = new Semaphore(1, 1);
+        //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
+        private int isFreeze = 0;
+
+        //List of functions to call when the process is unfreezed
+        private List<Action> functions = new List<Action>();
 
         public void ChangeTopic(string Topic)
         {
-            myTopic = "root/" + Topic;
-            broker.ChangePublishTopic(myURL, Topic);
+            if (isFreeze == 0)
+            {
+                myTopic = "root/" + Topic;
+                broker.ChangePublishTopic(myURL, Topic);
+            }
+            else { functions.Add(() => this.ChangeTopic(Topic)); }
         }
 
         public void SendPublication(string publication)
         {
-            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-            PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+            if (isFreeze == 0)
+            {
+                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
 
-            broker.ReceivePublication(publication, myURL, myTopic);
+                broker.ReceivePublication(publication, myURL, myTopic);
+            }
+            else { functions.Add(() => this.SendPublication(publication)); }
         }
 
         public void Kill()
         {
-            Application.Exit();
+            if (isFreeze == 0)
+            {
+                Application.Exit();
+            }
+            else { functions.Add(() => this.Kill()); }
         }
 
         public void Freeze()
         {
-
-            sem.WaitOne();
+            isFreeze = 1;
         }
-
         public void Unfreeze()
         {
-            sem.Release();
+            isFreeze = 0;
+            foreach (var function in functions)
+            {
+                function.Invoke();
+            }
+            functions.Clear();
         }
 
         //gives a status report on the node
         //this includes saying its alive and the current publishing topic
         public void StatusUpdate()
         {
-            Console.WriteLine("[Status Publisher]");
-            Console.WriteLine("I'm alive at: " + myURL);
-            Console.WriteLine("My current publishing topic is: " + myTopic);
+            if (isFreeze == 0)
+            {
+                Console.WriteLine("[Status Publisher]");
+                Console.WriteLine("I'm alive at: " + myURL);
+                Console.WriteLine("My current publishing topic is: " + myTopic);
+            }
+            else { functions.Add(() => this.StatusUpdate()); }
         }
     }
 }
