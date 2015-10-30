@@ -74,10 +74,19 @@ namespace SESDAD
 
         }
 
-        internal void UpdatePTopics(string message)
+        internal void AddTopic(string topic)
         {
             subscriptions.Add(topic);
             TopicListBox.Text = string.Join("\r\n", subscriptions);
+        }
+
+        internal void RemoveTopic(string topic)
+        {
+            if (subscriptions.Contains(topic))
+            {
+                subscriptions.Remove(topic);
+                TopicListBox.Text = string.Join("\r\n", subscriptions);
+            }
         }
     }
 }

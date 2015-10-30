@@ -39,6 +39,7 @@ namespace SESDAD
         void AddSubscription(string topic);
         void AddSubscriptionRemote(string topic);
         void RemoveSubscription(string topic);
+        void RemoveSubscriptionRemote(string topic);
         void Kill();
     }
 

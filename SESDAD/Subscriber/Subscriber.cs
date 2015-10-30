@@ -85,7 +85,9 @@ namespace SESDAD
 
 
     delegate void DelegateReceivePublication(string message);
-    delegate void DelegateAddSubscriptionRemote(string message);
+    delegate void DelegateAddSubscriptionRemote(string topic);
+    delegate void DelegateRemoveSubscriptionRemote(string topic);
+
 
     public class RemoteSubscriber : MarshalByRefObject, SubscriberInterface
     {
@@ -138,11 +140,24 @@ namespace SESDAD
             try
             {
                 broker.AddSubscription(myURL, topic);
-                form.Invoke(new DelegateAddSubscriptionRemote(form.UpdatePTopics), topic);
+                form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
             }
             catch (SocketException)
             {
 
+            }
+        }
+
+        public void RemoveSubscriptionRemote(string topic)
+        {
+            try
+            {
+                broker.RemoveSubscription(myURL, topic);
+                form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
+            }
+            catch (SocketException)
+            {
+                System.Console.WriteLine("Could not locate Broker");
             }
         }
     }
