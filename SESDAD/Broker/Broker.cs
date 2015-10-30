@@ -7,6 +7,7 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters;
 using System.Diagnostics;
+using System.Threading;
 
 namespace SESDAD
 {
@@ -17,7 +18,6 @@ namespace SESDAD
         internal static string fatherURL = null;
         internal static List<string> childURLs;
         private string processname;
-
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -93,11 +93,12 @@ namespace SESDAD
         // 0 did NOT porpagate yet; 1 already porpagate
         private int propagate = 0;
 
+        internal static Semaphore sem = new Semaphore(1, 1);
+        WaitHandle[] handle = new WaitHandle[] { sem };
+
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
         {
-            //SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), "tcp://localhost:8090/SubscriberServer");
-
             //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
             List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
             auxlist.Add("root");
@@ -181,7 +182,6 @@ namespace SESDAD
         
         public void ConnectPublisher(string pubURL)
         {
-            //PublisherInterface newPublisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), "tcp://localhost:8088/PublisherServer");
             //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
 
             publishers.Add(pubURL, "root");
@@ -307,13 +307,24 @@ namespace SESDAD
             Application.Exit();
         }
 
+        public void Freeze()
+        {
+            sem.WaitOne();
+        }
+        public void Unfreeze()
+        {
+            WaitHandle.WaitAny(handle);
+            sem.Release();
+        }
+
         //calls for a status report on every node linked to himself. brokers subs and publishers
         public void StatusUpdate()
         {
             Console.WriteLine("[Status Broker]");
             Console.WriteLine("I'm alive at: " + myURL);
             Console.WriteLine("Presumed alive subscribers are: ");
-            foreach(string sub in subscribers.Keys) {
+
+            foreach (string sub in subscribers.Keys) {
                 Console.WriteLine(sub);
             }
             //call for status report of the subs

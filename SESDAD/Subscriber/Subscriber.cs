@@ -7,6 +7,7 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -95,6 +96,8 @@ namespace SESDAD
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 
+        static Semaphore sem = new Semaphore(1, 1);
+
         public void ReceivePublication(string publication, string pubURL, string pubTopic)
         {
             Console.WriteLine("received publication for my subscription");
@@ -133,6 +136,17 @@ namespace SESDAD
         public void Kill()
         {
             Application.Exit();
+        }
+
+        public void Freeze()
+        {
+
+            sem.WaitOne();
+        }
+
+        public void Unfreeze()
+        {
+            sem.Release();
         }
 
         public void AddSubscriptionRemote(string topic)

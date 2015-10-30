@@ -276,10 +276,35 @@ namespace SESDAD
                 case "Freeze":
                     processname = inputParsed.ElementAt(1);
                     //TODO make node sleep until awoken. child.sleep()?
+                    if (processname.Contains("broker"))
+                    {
+                        remotePM.FreezeBroker(brokerTable[processname]);
+                    }
+                    else if (processname.Contains("subscriber"))
+                    {
+                        remotePM.FreezeSubscriber(subscriberTable[processname]);
+                    }
+                    else if (processname.Contains("publisher"))
+                    {
+                        remotePM.FreezePublisher(publisherTable[processname]);
+                    }
                     break;
                 case "Unfreeze":
                     processname = inputParsed.ElementAt(1);
                     //TODO make node wake up. child.snoze()?
+                    //TODO crash a node. Use SIGKILL??
+                    if (processname.Contains("broker"))
+                    {
+                        remotePM.UnfreezeBroker(brokerTable[processname]);
+                    }
+                    else if (processname.Contains("subscriber"))
+                    {
+                        remotePM.UnfreezeSubscriber(subscriberTable[processname]);
+                    }
+                    else if (processname.Contains("publisher"))
+                    {
+                        remotePM.UnfreezePublisher(publisherTable[processname]);
+                    }
                     break;
                 case "Wait":
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
@@ -428,6 +453,68 @@ namespace SESDAD
             try {
                 pub.Kill();
             }catch(System.Net.Sockets.SocketException) { }
+        }
+
+       public void FreezeBroker(string URL)
+        {
+
+            BrokerInterface bk = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), URL);
+            try
+            {
+                bk.Freeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+       public  void FreezeSubscriber(string URL)
+        {
+            SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), URL);
+            try
+            {
+                sub.Freeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void FreezePublisher(string URL)
+        {
+            PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), URL);
+            try
+            {
+                pub.Freeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void UnfreezeBroker(string URL)
+        {
+
+            BrokerInterface bk = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), URL);
+            try
+            {
+                bk.Unfreeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void UnfreezeSubscriber(string URL)
+        {
+            SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), URL);
+            try
+            {
+                sub.Unfreeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
+        }
+
+        public void UnfreezePublisher(string URL)
+        {
+            PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), URL);
+            try
+            {
+                pub.Unfreeze();
+            }
+            catch (System.Net.Sockets.SocketException) { }
         }
 
         //calls for a system-wide status report

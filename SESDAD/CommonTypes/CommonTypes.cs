@@ -24,6 +24,8 @@ namespace SESDAD
         void SendPublication(string publication, string pubURL, string publicationTopic);
         void AddChild(string url);
         void Kill();
+        void Freeze();
+        void Unfreeze();
         void StatusUpdate();
     }
     
@@ -32,6 +34,8 @@ namespace SESDAD
         void ChangeTopic(string topic);
         void SendPublication(string publication);
         void Kill();
+        void Freeze();
+        void Unfreeze();
         void StatusUpdate();
 
     }
@@ -43,6 +47,8 @@ namespace SESDAD
         void RemoveSubscription(string topic);
         void RemoveSubscriptionRemote(string topic);
         void Kill();
+        void Freeze();
+        void Unfreeze();
         void StatusUpdate();
     }
 
@@ -55,6 +61,12 @@ namespace SESDAD
         void KillBroker(string URL);
         void KillSubscriber(string URL);
         void KillPublisher(string URL);
+        void FreezeBroker(string URL);
+        void FreezeSubscriber(string URL);
+        void FreezePublisher(string URL);
+        void UnfreezeBroker(string URL);
+        void UnfreezeSubscriber(string URL);
+        void UnfreezePublisher(string URL);
         void StatusUpdate();
     }
 }

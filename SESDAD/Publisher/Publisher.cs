@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -84,6 +85,8 @@ namespace SESDAD
         private string myURL = Publisher.myURL;
         string myTopic;
 
+        static Semaphore sem = new Semaphore(1, 1);
+
         public void ChangeTopic(string Topic)
         {
             myTopic = "root/" + Topic;
@@ -101,6 +104,17 @@ namespace SESDAD
         public void Kill()
         {
             Application.Exit();
+        }
+
+        public void Freeze()
+        {
+
+            sem.WaitOne();
+        }
+
+        public void Unfreeze()
+        {
+            sem.Release();
         }
 
         //gives a status report on the node
