@@ -105,10 +105,17 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+                if (myTopic != null)
+                {
+                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                    PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
 
-                broker.ReceivePublication(publication, myURL, myTopic);
+                    broker.ReceivePublication(publication, myURL, myTopic);
+                }
+                else
+                {
+                    System.Windows.Forms.MessageBox.Show("Please select a topic to publish to");
+                }
             }
             else { functions.Add(() => this.SendPublication(publication)); }
         }

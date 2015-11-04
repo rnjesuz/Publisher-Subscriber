@@ -111,9 +111,8 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                //add subscriber to the Dictionary. By default the subscription is of every publication ( denoted by root/ )
+                //add subscriber to the Dictionary.
                 List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
-                auxlist.Add("root");
                 subscribers.Add(subURL, auxlist);
                 System.Console.WriteLine("Subscriber at: " + subURL + " connected");
             }
@@ -128,23 +127,10 @@ namespace SESDAD
                 if (subscribers.ContainsKey(subURL))
                 {
                     /*Verify if already subscribed to topic*/
-                    if (!subscribers[subURL].Contains("root/" + subscription))
+                    if (!subscribers[subURL].Contains(subscription))
                     {
-                        /*Verify if Subscribers first subscription*/
-                        if (subscribers[subURL].Count == 1 && subscribers[subURL].Contains("root"))
-                        {
-                            /*eliminate root entry, so no errors*/
-                            subscribers[subURL].Clear();
-                            subscribers[subURL].Add("root/" + subscription);
-                            System.Console.WriteLine(subURL + " subscribed to: " + subscription);
-
-                        }
-                        else
-                        {
-                            /*if not the first subscription, do this*/
-                            subscribers[subURL].Add("root/" + subscription);
-                            System.Console.WriteLine(subURL + " subscribed to: " + subscription);
-                        }
+                        subscribers[subURL].Add(subscription);
+                        System.Console.WriteLine(subURL + " subscribed to: " + subscription);
                     }
                     else
                     {
@@ -169,22 +155,11 @@ namespace SESDAD
                 if (subscribers.ContainsKey(subURL))
                 {
                     //Verify subscriber is subscribed to topic
-                    if (subscribers[subURL].Contains("root/" + topic))
+                    if (subscribers[subURL].Contains(topic))
                     {
-                        //Verify if only sub -> implement defaul root
-                        if (subscribers[subURL].Count == 1)
-                        {
-                            //remove only topic establish default root
-                            subscribers[subURL].Clear();
-                            subscribers[subURL].Add("root");
-                            Console.WriteLine(topic + " removed from " + subURL);
-                        }
-                        else
-                        {
-                            //Normal remove of topic
-                            subscribers[subURL].Remove("root/" + topic);
-                            Console.WriteLine(topic + " removed from " + subURL);
-                        }
+                        //Normal remove of topic
+                        subscribers[subURL].Remove(topic);
+                        Console.WriteLine(topic + " removed from " + subURL);                 
                     }
                     else
                     {
@@ -206,7 +181,7 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                //add publisher to the Dictionary. By default the publisher publishes to the general topic ( denoted by root/ )
+                //add publisher to the Dictionary.
                 publishers.Add(pubURL, "root");
                 Console.WriteLine("Publisher at: " + pubURL + " connected");
             }
@@ -220,7 +195,7 @@ namespace SESDAD
             {
                 if (publishers.ContainsKey(pubURL))
                 {
-                    publishers[pubURL] = "root/" + topic;
+                    publishers[pubURL] = topic;
                     Console.WriteLine(pubURL + " publishing to: " + topic);
                 }
                 else
