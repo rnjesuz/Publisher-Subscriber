@@ -308,16 +308,19 @@ namespace SESDAD
                         processname = inputParsed.ElementAt(1);
                         //TODO crash a node. Use SIGKILL??
                         if (processname.Contains("broker"))
-                        {
+                        {                            
                             remotePM.KillBroker(brokerTable[processname]);
+                            brokerTable.Remove(processname);
                         }
                         else if (processname.Contains("subscriber"))
-                        {
+                        {                            
                             remotePM.KillSubscriber(subscriberTable[processname]);
+                            subscriberTable.Remove(processname);
                         }
                         else if (processname.Contains("publisher"))
-                        {
+                        {                            
                             remotePM.KillPublisher(publisherTable[processname]);
+                            publisherTable.Remove(processname);
                         }
                         Console.WriteLine("Crash Done");
                     }

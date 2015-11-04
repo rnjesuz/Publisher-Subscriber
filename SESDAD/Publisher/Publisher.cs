@@ -95,8 +95,14 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                myTopic = "root/" + Topic;
-                broker.ChangePublishTopic(myURL, Topic);
+                myTopic = Topic;
+                try {
+                    broker.ChangePublishTopic(myURL, Topic);
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    Console.WriteLine("can't connect to broker");
+                }
             }
             else { functions.Add(() => this.ChangeTopic(Topic)); }
         }
@@ -109,8 +115,14 @@ namespace SESDAD
                 {
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+                    try {
+                        broker.ReceivePublication(publication, myURL, myTopic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
 
-                    broker.ReceivePublication(publication, myURL, myTopic);
                 }
                 else
                 {
