@@ -66,8 +66,25 @@ namespace SESDAD
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePM), "puppetmaster", WellKnownObjectMode.Singleton);
 
+            //boolean to read from a textfile. false = no script, true = with script
+            bool readCommands = false;
+            //bool readCommands = true;
+            if (readCommands)
+            {
+                Console.WriteLine("Please wait while we read commands from file");
+                string commandPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"Commands.txt");
+                string[] commands = System.IO.File.ReadAllLines(commandPath);
+                string[] parsedCommands; //Line from config file that has the site information
+                foreach (string command in commands) {
+                    parsedCommands = command.Split(null);
+                    ExecuteCommand(parsedCommands.ToList());
+                }
+            }
+
             Console.WriteLine("Input the Command you which to execute!");
             Console.WriteLine("Type \" Help \" for the list of available commands");
+
+            //Cycle to read input from console
             while (active)
             {
                 //get user input
@@ -237,7 +254,7 @@ namespace SESDAD
                             {
                                 string subName = subscriberTable[processname];
                                 remotePM.SendSubscribeOrder(subName, topicname);
-                                Console.WriteLine("Done");
+                                Console.WriteLine("Subcribe Done");
                             }
                             catch (Exception e)
                             {
@@ -251,7 +268,7 @@ namespace SESDAD
                             try {
                                 string subName = subscriberTable[processname];
                                 remotePM.SendUnsubscribeOrder(subName, topicname);
-                                Console.WriteLine("Done");
+                                Console.WriteLine("Unsubcribe Done");
                             }
                             catch(Exception e)
                             {
@@ -272,7 +289,7 @@ namespace SESDAD
                         try {
                             string pubName = publisherTable[processname];
                             remotePM.SendPublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
-                            Console.WriteLine("Done");
+                            Console.WriteLine("Publishing Done");
                         }
                         catch(Exception e)
                         {
@@ -284,6 +301,7 @@ namespace SESDAD
                     break;
                 case "Status":
                     remotePM.StatusUpdate();
+                    Console.WriteLine("Status Done");
                     break;
                 case "Crash":
                     try {
@@ -301,6 +319,7 @@ namespace SESDAD
                         {
                             remotePM.KillPublisher(publisherTable[processname]);
                         }
+                        Console.WriteLine("Crash Done");
                     }
                     catch (Exception e)
                     {
@@ -325,7 +344,7 @@ namespace SESDAD
                             remotePM.FreezePublisher(publisherTable[processname]);
                         }
 
-                        Console.WriteLine("Done");
+                        Console.WriteLine("Freeze Done");
                     }
                     catch (Exception e)
                     {
@@ -351,7 +370,7 @@ namespace SESDAD
                             remotePM.UnfreezePublisher(publisherTable[processname]);
                         }
 
-                        Console.WriteLine("Done");
+                        Console.WriteLine("Unfreeze Done");
                     }
                     catch (Exception e)
                     {
@@ -377,6 +396,7 @@ namespace SESDAD
                     Console.WriteLine("Quit");
                     break;
                 case "Quit":
+                    remotePM.Quit();
                     active = false;
                     //TODO go to every process and terminate them
                     break;
@@ -590,6 +610,24 @@ namespace SESDAD
             BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
             bi.StatusUpdate();
 
+        }
+
+        public void Quit()
+        {
+            Console.WriteLine("Killing... RIP");
+            Console.WriteLine("This may take a few momments");
+            foreach (string subURL in subscriberTable.Values)
+            {
+                KillSubscriber(subURL);
+            }
+            foreach (string pubURL in publisherTable.Values)
+            {
+                KillPublisher(pubURL);
+            }
+            foreach (string brkURL in brokerTable.Values)
+            {
+                KillBroker(brkURL);
+            }
         }
     }
 }

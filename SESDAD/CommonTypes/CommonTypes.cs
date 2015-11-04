@@ -68,5 +68,6 @@ namespace SESDAD
         void UnfreezeSubscriber(string URL);
         void UnfreezePublisher(string URL);
         void StatusUpdate();
+        void Quit();
     }
 }
