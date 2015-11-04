@@ -460,7 +460,6 @@ namespace SESDAD
                 tw.WriteLine(text);
                 tw.Close();
             }
-            Console.WriteLine("Logged a " +eventlabel);
         }
 
         public void SendSubscribeOrder(String subURL, string topic)

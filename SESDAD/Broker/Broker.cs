@@ -37,12 +37,19 @@ namespace SESDAD
                 new Broker(args[0], args[1]);
             }
 
-            TcpChannel channel = new TcpChannel(myPort);
+            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+            provider.TypeFilterLevel = TypeFilterLevel.Full;
+            IDictionary props = new Hashtable();
+            props["port"] = myPort;
+            TcpChannel channel = new TcpChannel(props, null, provider);
+
+
+            //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),"broker",WellKnownObjectMode.Singleton);
-
-            BrokerInterface rb =(BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+             
+            BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
             rb.ConnectFatherBroker(fatherURL);
 
             Application.EnableVisualStyles();
@@ -58,7 +65,6 @@ namespace SESDAD
             myURL = url;
             fatherURL = fUrl;
             myPort = parseURL(url);
-
         }
 
         public Broker (string name, string url)
@@ -233,8 +239,8 @@ namespace SESDAD
             {
                 fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBroker.AddChild(myURL);
+                Console.WriteLine("Added father");
             }
-            Console.WriteLine("Added father");
         }
 
         //add a child broker to the list
@@ -243,9 +249,10 @@ namespace SESDAD
             BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
             if (!(childBroker.Contains(bi)) && childBroker != null)
             {
+                Console.WriteLine("estou a adicionar o filho");
                 childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
+                Console.WriteLine("Added child");
             }
-            Console.WriteLine("added child");
         }
 
         //method called by a publisher to publish a publication
