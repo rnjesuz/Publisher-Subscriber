@@ -66,6 +66,8 @@ namespace SESDAD
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePM), "puppetmaster", WellKnownObjectMode.Singleton);
 
+            Console.WriteLine("Input the Command you which to execute!");
+            Console.WriteLine("Type \" Help \" for the list of available commands");
             while (active)
             {
                 //get user input
@@ -92,7 +94,6 @@ namespace SESDAD
                 {
                     case "Site":
                         siteTree.Add(parsedLine[1], parsedLine[3]); //adds site to the hastable(tree of sites)
-                        Console.WriteLine("Site :" + parsedLine[1] + parsedLine[3]);
                         break;
 
                     case "Process":
@@ -197,6 +198,7 @@ namespace SESDAD
                         break;
                 }
             }
+            Console.WriteLine("Reached end of ConfigFile.txt");
         }
 
         //receive a string and parde it into several tokens
@@ -225,94 +227,158 @@ namespace SESDAD
             switch (firstToken)
             {
                 case "Subscriber":
-                    thirdToken = inputParsed.ElementAt(2);
-                    switch (thirdToken)
+                    switch (inputParsed.ElementAt(2))
                     {
                         case "Subscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
                             //TODO subscribe process to topic
-                            remotePM.SendSubscribeOrder(subscriberTable[processname], topicname);
+                            try
+                            {
+                                string subName = subscriberTable[processname];
+                                remotePM.SendSubscribeOrder(subName, topicname);
+                                Console.WriteLine("Done");
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine("There is no subscriber with that name");
+                            }
                             break;
                         case "Unsubscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
                             //TODO unsubscribe process from topic
-                            remotePM.SendUnsubscribeOrder(subscriberTable[processname], topicname);
+                            try {
+                                string subName = subscriberTable[processname];
+                                remotePM.SendUnsubscribeOrder(subName, topicname);
+                                Console.WriteLine("Done");
+                            }
+                            catch(Exception e)
+                            {
+                                Console.WriteLine("There is no subscriber with that name");
+                            }
                             break;
                     }
                     break;
                 case "Publisher":
                     //check if input if of type: Publisher p Publish n Ontopic t Interval x
-                    if (thirdToken.Equals("Publish") && inputParsed.ElementAt(4).Equals("Ontopic") && inputParsed.ElementAt(6).Equals("Interval"))
+                    if (inputParsed.ElementAt(2).Equals("Publish") && inputParsed.ElementAt(4).Equals("Ontopic") && inputParsed.ElementAt(6).Equals("Interval"))
                     {
                         processname = inputParsed.ElementAt(1);
                         topicname = inputParsed.ElementAt(5);
                         numberofevents = Int32.Parse(inputParsed.ElementAt(3));
                         sleepInterval = Int32.Parse(inputParsed.ElementAt(7));
                         //TODO do publishing event with needed protocol
-                        remotePM.SendPublishOrder(publisherTable[processname], processname, topicname, numberofevents, sleepInterval);
+                        try {
+                            string pubName = publisherTable[processname];
+                            remotePM.SendPublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
+                            Console.WriteLine("Done");
+                        }
+                        catch(Exception e)
+                        {
+                            Console.WriteLine("There is no publisher with that name");
+                        }
                     }
+                    else
+                        Console.WriteLine("Publisher command incorrectly formated");
                     break;
                 case "Status":
                     remotePM.StatusUpdate();
                     break;
                 case "Crash":
-                    processname = inputParsed.ElementAt(1);
-                    //TODO crash a node. Use SIGKILL??
-                    if (processname.Contains("broker"))
-                    {
-                        remotePM.KillBroker(brokerTable[processname]);
+                    try {
+                        processname = inputParsed.ElementAt(1);
+                        //TODO crash a node. Use SIGKILL??
+                        if (processname.Contains("broker"))
+                        {
+                            remotePM.KillBroker(brokerTable[processname]);
+                        }
+                        else if (processname.Contains("subscriber"))
+                        {
+                            remotePM.KillSubscriber(subscriberTable[processname]);
+                        }
+                        else if (processname.Contains("publisher"))
+                        {
+                            remotePM.KillPublisher(publisherTable[processname]);
+                        }
                     }
-                    else if (processname.Contains("subscriber"))
+                    catch (Exception e)
                     {
-                        remotePM.KillSubscriber(subscriberTable[processname]);
-                    }
-                    else if (processname.Contains("publisher"))
-                    {
-                        remotePM.KillPublisher(publisherTable[processname]);
+                        Console.WriteLine("There is no process with that name");
                     }
                     break;
                 case "Freeze":
-                    processname = inputParsed.ElementAt(1);
-                    //TODO make node sleep until awoken. child.sleep()?
-                    if (processname.Contains("broker"))
+                    try
                     {
-                        remotePM.FreezeBroker(brokerTable[processname]);
+                        processname = inputParsed.ElementAt(1);
+                        //TODO make node sleep until awoken. child.sleep()?
+                        if (processname.Contains("broker"))
+                        {
+                            remotePM.FreezeBroker(brokerTable[processname]);
+                        }
+                        else if (processname.Contains("subscriber"))
+                        {
+                            remotePM.FreezeSubscriber(subscriberTable[processname]);
+                        }
+                        else if (processname.Contains("publisher"))
+                        {
+                            remotePM.FreezePublisher(publisherTable[processname]);
+                        }
+
+                        Console.WriteLine("Done");
                     }
-                    else if (processname.Contains("subscriber"))
+                    catch (Exception e)
                     {
-                        remotePM.FreezeSubscriber(subscriberTable[processname]);
-                    }
-                    else if (processname.Contains("publisher"))
-                    {
-                        remotePM.FreezePublisher(publisherTable[processname]);
+                        Console.WriteLine("There is no process with that name");
                     }
                     break;
                 case "Unfreeze":
-                    processname = inputParsed.ElementAt(1);
-                    //TODO make node wake up. child.snoze()?
-                    //TODO crash a node. Use SIGKILL??
-                    if (processname.Contains("broker"))
+                    try
                     {
-                        remotePM.UnfreezeBroker(brokerTable[processname]);
+                        processname = inputParsed.ElementAt(1);
+                        //TODO make node wake up. child.snoze()?
+                        //TODO crash a node. Use SIGKILL??
+                        if (processname.Contains("broker"))
+                        {
+                            remotePM.UnfreezeBroker(brokerTable[processname]);
+                        }
+                        else if (processname.Contains("subscriber"))
+                        {
+                            remotePM.UnfreezeSubscriber(subscriberTable[processname]);
+                        }
+                        else if (processname.Contains("publisher"))
+                        {
+                            remotePM.UnfreezePublisher(publisherTable[processname]);
+                        }
+
+                        Console.WriteLine("Done");
                     }
-                    else if (processname.Contains("subscriber"))
+                    catch (Exception e)
                     {
-                        remotePM.UnfreezeSubscriber(subscriberTable[processname]);
-                    }
-                    else if (processname.Contains("publisher"))
-                    {
-                        remotePM.UnfreezePublisher(publisherTable[processname]);
+                        Console.WriteLine("There is no process with that name");
                     }
                     break;
                 case "Wait":
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
                     //TODO go sleep. how do u auto sleep?
                     System.Threading.Thread.Sleep(sleepInterval);
+                    Console.WriteLine("I'm Awake!");
+                    break;
+                case "Help":
+                    Console.WriteLine("Here's a list of the acceptable commands");
+                    Console.WriteLine("Subscriber (processname Subscribe (topicname)");
+                    Console.WriteLine("Subscriber (processname) Unsubscribe (topicname)");
+                    Console.WriteLine("Publisher (processname) Publish (numberofevents) Ontopic (topicname) Interval (x_ms)");
+                    Console.WriteLine("Status");
+                    Console.WriteLine("Crash (processname)");
+                    Console.WriteLine("Freeze (processname)");
+                    Console.WriteLine("Unfreeze (processname)");
+                    Console.WriteLine("Wait (x_ms)");
+                    Console.WriteLine("Quit");
                     break;
                 case "Quit":
                     active = false;
+                    //TODO go to every process and terminate them
                     break;
                 default:
                     Console.WriteLine("Invalid Input");
@@ -351,8 +417,7 @@ namespace SESDAD
         {
             string process1Name;
             string process2Name;
-
-            Console.WriteLine("Received request for event Log");
+            
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
             //we test all the tables to find the processname for the given URL (p1)
@@ -382,7 +447,6 @@ namespace SESDAD
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
             
-            Console.WriteLine("Starting Log of event: "+eventlabel);
             if (!File.Exists(path))
             {
                 File.Create(path);
@@ -396,7 +460,7 @@ namespace SESDAD
                 tw.WriteLine(text);
                 tw.Close();
             }
-            Console.WriteLine("Ending Log of event: " + eventlabel);
+            Console.WriteLine("Logged a " +eventlabel);
         }
 
         public void SendSubscribeOrder(String subURL, string topic)
