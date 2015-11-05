@@ -30,12 +30,10 @@ namespace SESDAD
             //myURL = "tcp://localhost:"+myPort+"/broker";
             if (args.Length == 4)
             {
-                Console.WriteLine("estou a incializar o broker1");
                 new Broker(args[0], args[1], args[2], Int32.Parse(args[3]));
             }
             else
             {
-                Console.WriteLine("estou a incializar o broker2");
                 new Broker(args[0], args[1], Int32.Parse(args[2]));
             }
 
@@ -44,8 +42,7 @@ namespace SESDAD
             IDictionary props = new Hashtable();
             props["port"] = myPort;
             TcpChannel channel = new TcpChannel(props, null, provider);*/
-
-            Console.WriteLine("estou a fazer estas merdas");
+            
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
@@ -60,7 +57,6 @@ namespace SESDAD
 
         public Broker(string name, string url, string fUrl, int filtering)
         {
-            Console.WriteLine("iniciei1");
             processname = name;
             myURL = url;
             fatherURL = fUrl;
@@ -70,7 +66,6 @@ namespace SESDAD
 
         public Broker(string name, string url, int filtering)
         {
-            Console.WriteLine("iniciei2");
             processname = name;
             myURL = url;
             myPort = parseURL(url);
