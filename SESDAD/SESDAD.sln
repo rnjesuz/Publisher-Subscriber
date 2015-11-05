@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PuppetMaster", "PuppetMaste
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerConsole", "BrokerConsole\BrokerConsole.csproj", "{AA2E7C7E-E37A-4423-842F-EB493F007BA8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Broker", "Broker\Broker.csproj", "{05A0F9BB-9D8F-42A6-BAA5-297936EF8A82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{AA2E7C7E-E37A-4423-842F-EB493F007BA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA2E7C7E-E37A-4423-842F-EB493F007BA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA2E7C7E-E37A-4423-842F-EB493F007BA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05A0F9BB-9D8F-42A6-BAA5-297936EF8A82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05A0F9BB-9D8F-42A6-BAA5-297936EF8A82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05A0F9BB-9D8F-42A6-BAA5-297936EF8A82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05A0F9BB-9D8F-42A6-BAA5-297936EF8A82}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
