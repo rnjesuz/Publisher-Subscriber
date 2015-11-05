@@ -51,9 +51,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\BrokerConsole\BrokerConsole.csproj">
-      <Project>{aa2e7c7e-e37a-4423-842f-eb493f007ba8}</Project>
-      <Name>BrokerConsole</Name>
+    <ProjectReference Include="..\Broker\Broker.csproj">
+      <Project>{05a0f9bb-9d8f-42a6-baa5-297936ef8a82}</Project>
+      <Name>Broker</Name>
     </ProjectReference>
     <ProjectReference Include="..\CommonTypes\CommonTypes.csproj">
       <Project>{161ac5bb-598e-4885-96f0-1a05afb9627c}</Project>
