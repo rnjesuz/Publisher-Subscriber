@@ -52,11 +52,12 @@ namespace SESDAD
         //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
         static internal int Loglevel = 0;
 
+        internal static string directory = Directory.GetCurrentDirectory();
+
         static void Main(string[] args)
         {
             //System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
 
-            string directory = Directory.GetCurrentDirectory();
             File.WriteAllBytes(@"" + directory + "\\..\\..\\Log.txt", new byte[] { 0 });
    
             ReadConfigFile();
@@ -68,11 +69,17 @@ namespace SESDAD
 
             //boolean to read from a textfile. false = no script, true = with script
             bool readCommands = false;
-            //bool readCommands = true;
+        
+            Console.WriteLine("Do you wish to read a Commands File?");
+            Console.WriteLine("Type \"YES\" to read, or anything else not to");
+            string readfile = Console.ReadLine();
+            if (readfile.Equals("YES"))
+                readCommands = true;
+
             if (readCommands)
             {
                 Console.WriteLine("Please wait while we read commands from file");
-                string commandPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"Commands.txt");
+                string commandPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"" + directory + "\\..\\..\\Commands.txt");
                 string[] commands = System.IO.File.ReadAllLines(commandPath);
                 string[] parsedCommands; //Line from config file that has the site information
                 foreach (string command in commands) {
@@ -101,7 +108,7 @@ namespace SESDAD
         {
             //read all lines from the config file. split ea line into an array
             //string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Public\TestFolder\WriteLines2.txt");
-            string configPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ConfigFile.txt");
+            string configPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"" + directory + "\\..\\..\\ConfigFile.txt");
             string[] lines = System.IO.File.ReadAllLines(configPath);
             string[] parsedLine; //Line from config file that has the site information
             foreach (string line in lines)
@@ -125,7 +132,7 @@ namespace SESDAD
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
-                                        string[] args = new string[2] { parsedLine[1], parsedLine[7]};
+                                        string[] args = new string[3] { parsedLine[1], parsedLine[7], eventRouting.ToString() };
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", args);
@@ -134,13 +141,15 @@ namespace SESDAD
                                     else
                                     {
                                         // new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
-                                        string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]] };
+                                        string[] args = new string[4] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString() };
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", args);
                                         Process.Start(startInfo);
                                     }
                                 }
+                                else
+                                    Console.WriteLine("Process broker wrongly formatted");
                                 break;
 
                             case "publisher":
@@ -149,11 +158,13 @@ namespace SESDAD
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
                                     //new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
                                     string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]] };
-                                    ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1]+".exe");
+                                    ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1] + ".exe");
                                     startInfo.FileName = "publisher.exe";
                                     startInfo.Arguments = String.Join(" ", args);
                                     Process.Start(startInfo);
                                 }
+                                else
+                                    Console.WriteLine("Process publisher wrongly formatted");
                                 break;
 
                             case "subscriber":
@@ -167,6 +178,8 @@ namespace SESDAD
                                     startInfo.Arguments = String.Join(" ", args);
                                     Process.Start(startInfo);
                                 }
+                                else
+                                    Console.WriteLine("Process subscriber wrongly formatted");
                                 break;
                         }
                         break;
@@ -505,7 +518,8 @@ namespace SESDAD
             for (int i = 0; i< numberofevents; i++)
             {
                 sequenceNumber += 1;
-                if(sequenceNumber % 2 == 0) { System.Threading.Thread.Sleep(sleepInterval); }
+                //if(sequenceNumber % 2 == 0) { System.Threading.Thread.Sleep(sleepInterval); }
+                System.Threading.Thread.Sleep(sleepInterval);
                 pub.SendPublication("Publisher: " + processName + "; event " + sequenceNumber);
             }
         }

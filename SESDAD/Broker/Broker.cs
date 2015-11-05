@@ -18,6 +18,8 @@ namespace SESDAD
         internal static string fatherURL = null;
         internal static List<string> childURLs;
         private string processname;
+        //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
+        internal static int isFiltering = 0;
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -28,13 +30,13 @@ namespace SESDAD
             // myPort = 8086;
             //TODO remove after PuppetMaster is implemented
             //myURL = "tcp://localhost:"+myPort+"/broker";
-            if (args.Length == 3)
+            if (args.Length == 4)
             {
-                new Broker(args[0], args[1], args[2]);
+                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]) );
             }
             else
             {
-                new Broker(args[0], args[1]);
+                new Broker(args[0], args[1], Int32.Parse(args[2]) );
             }
 
             BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
@@ -59,19 +61,21 @@ namespace SESDAD
            
         }
 
-        public Broker(string name, string url, string fUrl)
+        public Broker(string name, string url, string fUrl, int filtering)
         {
             processname = name;
             myURL = url;
             fatherURL = fUrl;
             myPort = parseURL(url);
+            isFiltering = filtering;
         }
 
-        public Broker (string name, string url)
+        public Broker (string name, string url, int filtering)
         {
             processname = name;
             myURL = url;
             myPort = parseURL(url);
+            isFiltering = filtering;
         }
 
         public int parseURL(string url)
@@ -93,6 +97,12 @@ namespace SESDAD
         BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL. last leaf
         List<BrokerInterface> childBroker = new List<BrokerInterface>();
+
+        //List of father's interested subscription. NULL unless routing is mode filtering
+        List<string> fatherSubscriptions = new List<string>();
+        //Dictionary between each child and they're interested subscriptions. NULL unless routing is mode filtering
+        Dictionary<string, List<string>> childsSubscriptions = new Dictionary<string, List<string>>();
+
         //Url broker
         private string myURL = Broker.myURL;
 
@@ -101,6 +111,9 @@ namespace SESDAD
 
         //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
+
+        //boll to tell if systme is in mode filtering(1) or flooding(0) 
+        private int isFiltering = Broker.isFiltering;
 
         //List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
@@ -135,6 +148,15 @@ namespace SESDAD
                     else
                     {
                         System.Console.WriteLine(subURL + " already subscribed to " + subscription);
+                    }
+
+                    //sends subscription to father and child if flag is active
+                    if(isFiltering == 1) {
+                        fatherBroker.NewSubscriptionForFather(myURL, subscription);
+                        foreach(BrokerInterface bi in childBroker)
+                        {
+                            bi.NewSubscriptionForChild(subscription);
+                        }
                     }
                 }
                 else
@@ -221,12 +243,16 @@ namespace SESDAD
         //add a child broker to the list
         public void AddChild(string url)
         {
+            //adds child to list of childs
             BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
             if (!(childBroker.Contains(bi)) && childBroker != null)
             {
-                Console.WriteLine("estou a adicionar o filho");
                 childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
                 Console.WriteLine("Added child");
+            }
+            //creates and entrance in the hashmap for this child and its future subscriptions.
+            if (!(childsSubscriptions.ContainsKey(url))){
+                childsSubscriptions.Add(url, new List<string>());
             }
         }
 
@@ -258,31 +284,73 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                Console.WriteLine("[PropagatePublication]");
-                //check if Broker is tree root
-                if (fatherBroker != null)
+                //mode flooding
+                if (isFiltering == 0)
                 {
-                    Console.WriteLine("Propagating to father");
-                    fatherBroker.ReceivePublication(publication, pubURL, topic);
-                    Console.WriteLine("Propagated");
-                    Console.WriteLine("Started call for Log Update");
-                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                    PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                    Console.WriteLine("Ended call for Log Update");
-                }
-
-                if (childBroker != null)
-                {
-                    foreach (BrokerInterface child in childBroker)
+                    Console.WriteLine("[PropagatePublication]");
+                    //check if Broker is tree root
+                    if (fatherBroker != null)
                     {
-                        Console.WriteLine("Propagating to child(s)");
-                        child.ReceivePublication(publication, pubURL, topic);
+                        Console.WriteLine("Propagating to father");
+                        fatherBroker.ReceivePublication(publication, pubURL, topic);
                         Console.WriteLine("Propagated");
                         Console.WriteLine("Started call for Log Update");
                         PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                         PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                        Console.WriteLine("Finsihed call for Log Update");
+                        Console.WriteLine("Ended call for Log Update");
                     }
+
+                    if (childBroker != null)
+                    {
+                        foreach (BrokerInterface child in childBroker)
+                        {
+                            Console.WriteLine("Propagating to child(s)");
+                            child.ReceivePublication(publication, pubURL, topic);
+                            Console.WriteLine("Propagated");
+                            Console.WriteLine("Started call for Log Update");
+                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                            PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                            Console.WriteLine("Finsihed call for Log Update");
+                        }
+                    }
+                }
+                else
+                {
+                    //mode filtering 
+
+                    //check if father is interested
+                    foreach(string subscription in fatherSubscriptions)
+                    {
+                        if (subscription.Equals(topic))
+                        {
+                            Console.WriteLine("Propagating to father");
+                            fatherBroker.ReceivePublication(publication, pubURL, topic);
+                            Console.WriteLine("Propagated");
+                            Console.WriteLine("Started call for Log Update");
+                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                            PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                            Console.WriteLine("Ended call for Log Update");
+                        }
+                    }
+
+                    //check if any child is intereted
+                    foreach (string child in childsSubscriptions.Keys)
+                    {
+                        foreach(string subscription in childsSubscriptions[child])
+                        {
+                            if (subscription.Equals(topic))
+                            {
+                                Console.WriteLine("Propagating to child(s)");
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                bi.ReceivePublication(publication, pubURL, topic);
+                                Console.WriteLine("Propagated");
+                                Console.WriteLine("Started call for Log Update");
+                                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                                PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                                Console.WriteLine("Finsihed call for Log Update");
+                            }
+                        }
+                    }                    
                 }
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
@@ -388,6 +456,16 @@ namespace SESDAD
                 Console.WriteLine("-------------------------------");
             }
             else { functions.Add(() => this.StatusUpdate() ); }
+        }
+
+        public void NewSubscriptionForFather(string childURL, string subscription)
+        {
+            childsSubscriptions[childURL].Add(subscription);
+        }
+
+        public void NewSubscriptionForChild(string subscription)
+        {
+            fatherSubscriptions.Add(subscription);
         }
     }
 }

@@ -27,6 +27,8 @@ namespace SESDAD
         void Freeze();
         void Unfreeze();
         void StatusUpdate();
+        void NewSubscriptionForFather(string myurl, string subscription);
+        void NewSubscriptionForChild(string subscription);
     }
     
     public interface PublisherInterface
