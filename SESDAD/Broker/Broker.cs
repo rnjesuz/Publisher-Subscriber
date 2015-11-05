@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace SESDAD
 {
@@ -17,7 +13,6 @@ namespace SESDAD
         private static int myPort;
         internal static string myURL = null;
         internal static string fatherURL = null;
-        internal static List<string> childURLs;
         private string processname;
         //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
         internal static int isFiltering = 0;
@@ -37,13 +32,13 @@ namespace SESDAD
                 new Broker(args[0], args[1], Int32.Parse(args[2]));
             }
 
-            /*BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
             provider.TypeFilterLevel = TypeFilterLevel.Full;
             IDictionary props = new Hashtable();
             props["port"] = myPort;
-            TcpChannel channel = new TcpChannel(props, null, provider);*/
+            TcpChannel channel = new TcpChannel(props, null, provider);
             
-            TcpChannel channel = new TcpChannel(myPort);
+            //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
@@ -297,7 +292,7 @@ namespace SESDAD
                 bool wasTherePropagation = false;
 
                 Console.WriteLine("[PropagatePublication]");
-
+                Console.WriteLine("estou em modo " + isFiltering.ToString());
                 //mode flooding
                 if (isFiltering == 0)
                 {

@@ -5,12 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
-using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting;
-using System.IO;
 
 namespace SESDAD
 {
@@ -19,7 +17,6 @@ namespace SESDAD
         static string input;
         static List<string> inputParsed;
         static string firstToken;
-        static string thirdToken;
         static string processname;
         static string topicname;
         static int numberofevents;
@@ -47,7 +44,6 @@ namespace SESDAD
 
         //boolean for the ordering . -1=NO, 0 = FIFO, 1 = TOTAL; Default is FIFO
         static int Ordering = 0;
-        static int eventNumber = 0;
 
         //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
         static internal int Loglevel = 0;
@@ -269,7 +265,7 @@ namespace SESDAD
                                 remotePM.SendSubscribeOrder(subName, topicname);
                                 Console.WriteLine("Subcribe Done");
                             }
-                            catch (Exception e)
+                            catch (KeyNotFoundException)
                             {
                                 Console.WriteLine("There is no subscriber with that name");
                             }
@@ -283,7 +279,7 @@ namespace SESDAD
                                 remotePM.SendUnsubscribeOrder(subName, topicname);
                                 Console.WriteLine("Unsubcribe Done");
                             }
-                            catch(Exception e)
+                            catch(KeyNotFoundException)
                             {
                                 Console.WriteLine("There is no subscriber with that name");
                             }
@@ -304,7 +300,7 @@ namespace SESDAD
                             remotePM.SendPublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
                             Console.WriteLine("Publishing Done");
                         }
-                        catch(Exception e)
+                        catch(KeyNotFoundException)
                         {
                             Console.WriteLine("There is no publisher with that name");
                         }
@@ -337,7 +333,7 @@ namespace SESDAD
                         }
                         Console.WriteLine("Crash Done");
                     }
-                    catch (Exception e)
+                    catch (KeyNotFoundException)
                     {
                         Console.WriteLine("There is no process with that name");
                     }
@@ -362,7 +358,7 @@ namespace SESDAD
 
                         Console.WriteLine("Freeze Done");
                     }
-                    catch (Exception e)
+                    catch (KeyNotFoundException)
                     {
                         Console.WriteLine("There is no process with that name");
                     }
@@ -388,7 +384,7 @@ namespace SESDAD
 
                         Console.WriteLine("Unfreeze Done");
                     }
-                    catch (Exception e)
+                    catch (KeyNotFoundException)
                     {
                         Console.WriteLine("There is no process with that name");
                     }

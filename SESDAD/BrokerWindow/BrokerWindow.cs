@@ -6,8 +6,6 @@ using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters;
-using System.Diagnostics;
-using System.Threading;
 
 namespace SESDAD
 {
@@ -16,7 +14,6 @@ namespace SESDAD
         private static int myPort;
         internal static string myURL = null;
         internal static string fatherURL = null;
-        internal static List<string> childURLs;
         private string processname;
         //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
         internal static int isFiltering = 0;
