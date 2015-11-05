@@ -41,7 +41,6 @@
             this.TopicTextBox.Name = "TopicTextBox";
             this.TopicTextBox.Size = new System.Drawing.Size(241, 20);
             this.TopicTextBox.TabIndex = 0;
-            this.TopicTextBox.Text = "Enter your Topic";
             this.TopicTextBox.TextChanged += new System.EventHandler(this.TopicTextBox_TextChanged);
             // 
             // TopicButton
