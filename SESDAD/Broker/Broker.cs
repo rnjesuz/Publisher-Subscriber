@@ -152,8 +152,10 @@ namespace SESDAD
 
                     //sends subscription to father and child if flag is active
                     if(isFiltering == 1) {
-                        fatherBroker.NewSubscriptionForFather(myURL, subscription);
-                        foreach(BrokerInterface bi in childBroker)
+                        if(fatherBroker != null)
+                            fatherBroker.NewSubscriptionForFather(myURL, subscription);
+
+                        foreach (BrokerInterface bi in childBroker)
                         {
                             bi.NewSubscriptionForChild(subscription);
                         }
@@ -188,6 +190,18 @@ namespace SESDAD
                         //TODO throw an exception to the subscriber
                         Console.WriteLine("There is no such topic");
                     }
+
+                    if (isFiltering == 1)
+                    {
+                        if (fatherBroker != null)
+                            fatherBroker.RemoveSubscriptionForFather(myURL, topic);
+
+                        foreach (BrokerInterface bi in childBroker)
+                        {
+                            bi.RemoveSubscriptionForChild(topic);
+                        }
+                    }
+
                 }
                 else
                 {
@@ -284,20 +298,21 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
+                bool wasTherePropagation = false;
+
+                Console.WriteLine("[PropagatePublication]");
+
                 //mode flooding
                 if (isFiltering == 0)
-                {
-                    Console.WriteLine("[PropagatePublication]");
+                {                
                     //check if Broker is tree root
                     if (fatherBroker != null)
                     {
                         Console.WriteLine("Propagating to father");
                         fatherBroker.ReceivePublication(publication, pubURL, topic);
                         Console.WriteLine("Propagated");
-                        Console.WriteLine("Started call for Log Update");
-                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                        PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                        Console.WriteLine("Ended call for Log Update");
+                       
+                        wasTherePropagation = true;
                     }
 
                     if (childBroker != null)
@@ -307,29 +322,25 @@ namespace SESDAD
                             Console.WriteLine("Propagating to child(s)");
                             child.ReceivePublication(publication, pubURL, topic);
                             Console.WriteLine("Propagated");
-                            Console.WriteLine("Started call for Log Update");
-                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                            PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                            Console.WriteLine("Finsihed call for Log Update");
+
+                            wasTherePropagation = true;
                         }
                     }
                 }
                 else
                 {
                     //mode filtering 
-
                     //check if father is interested
                     foreach(string subscription in fatherSubscriptions)
                     {
+                        Console.WriteLine("sub: " + subscription);
                         if (subscription.Equals(topic))
                         {
                             Console.WriteLine("Propagating to father");
                             fatherBroker.ReceivePublication(publication, pubURL, topic);
                             Console.WriteLine("Propagated");
-                            Console.WriteLine("Started call for Log Update");
-                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                            PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                            Console.WriteLine("Ended call for Log Update");
+
+                            wasTherePropagation = true;
                         }
                     }
 
@@ -344,13 +355,18 @@ namespace SESDAD
                                 BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                                 bi.ReceivePublication(publication, pubURL, topic);
                                 Console.WriteLine("Propagated");
-                                Console.WriteLine("Started call for Log Update");
-                                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                                PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                                Console.WriteLine("Finsihed call for Log Update");
+
+                                wasTherePropagation = true;
                             }
                         }
                     }                    
+                }
+                if (wasTherePropagation){
+                    Console.WriteLine("Started call for Log Update");
+                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                    PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                    Console.WriteLine("Ended call for Log Update");
+                    wasTherePropagation = false;
                 }
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
@@ -460,12 +476,48 @@ namespace SESDAD
 
         public void NewSubscriptionForFather(string childURL, string subscription)
         {
+            Console.WriteLine("One of my childs has a new subscription");
             childsSubscriptions[childURL].Add(subscription);
+
+            //test is there a father to send to
+            if(fatherBroker != null)
+                fatherBroker.NewSubscriptionForFather(myURL, subscription);
         }
 
         public void NewSubscriptionForChild(string subscription)
         {
+            Console.WriteLine("My father has a new subscription");
             fatherSubscriptions.Add(subscription);
+
+            //send interests to my own childs.
+            //no need to test for null the foreach doe sit for us
+            foreach (BrokerInterface bi in childBroker)
+            {
+                bi.NewSubscriptionForChild(subscription);
+            }
+        }
+
+        public void RemoveSubscriptionForFather(string childURL, string topic)
+        {
+            Console.WriteLine("One of my childs removed a subscription");
+            childsSubscriptions[childURL].Remove(topic);
+
+            //test if there's a father to send to
+            if (fatherBroker != null)
+                fatherBroker.RemoveSubscriptionForFather(myURL, topic);
+        }
+
+        public void RemoveSubscriptionForChild(string topic)
+        {
+            Console.WriteLine("My father removed a subscription");
+            fatherSubscriptions.Remove(topic);
+
+            //remove interests from child
+            //no need to test for null the foreach does it for us
+            foreach (BrokerInterface bi in childBroker)
+            {
+                bi.RemoveSubscriptionForChild(topic);
+            }
         }
     }
 }

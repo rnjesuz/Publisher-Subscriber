@@ -518,7 +518,6 @@ namespace SESDAD
             for (int i = 0; i< numberofevents; i++)
             {
                 sequenceNumber += 1;
-                //if(sequenceNumber % 2 == 0) { System.Threading.Thread.Sleep(sleepInterval); }
                 System.Threading.Thread.Sleep(sleepInterval);
                 pub.SendPublication("Publisher: " + processName + "; event " + sequenceNumber);
             }
