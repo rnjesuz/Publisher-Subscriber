@@ -8,13 +8,18 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace BrokerWindow
+namespace SESDAD
 {
-    public partial class BrokerWindowForm : Form
+    public partial class Form1 : Form
     {
-        public BrokerWindowForm()
+        public Form1()
         {
             InitializeComponent();
+        }
+
+        private void BrokerWindowForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

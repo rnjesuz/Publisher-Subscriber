@@ -30,31 +30,37 @@ namespace SESDAD
             //myURL = "tcp://localhost:"+myPort+"/broker";
             if (args.Length == 4)
             {
+                Console.WriteLine("estou a incializar o broker1");
                 new Broker(args[0], args[1], args[2], Int32.Parse(args[3]));
             }
             else
             {
+                Console.WriteLine("estou a incializar o broker2");
                 new Broker(args[0], args[1], Int32.Parse(args[2]));
             }
 
-            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+            /*BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
             provider.TypeFilterLevel = TypeFilterLevel.Full;
             IDictionary props = new Hashtable();
             props["port"] = myPort;
-            TcpChannel channel = new TcpChannel(props, null, provider);
+            TcpChannel channel = new TcpChannel(props, null, provider);*/
 
-
-            //TcpChannel channel = new TcpChannel(myPort);
+            Console.WriteLine("estou a fazer estas merdas");
+            TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
 
             BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
             rb.ConnectFatherBroker(fatherURL);
+
+            //solely to prevent console from closing
+            while (true) { }
         }
 
         public Broker(string name, string url, string fUrl, int filtering)
         {
+            Console.WriteLine("iniciei1");
             processname = name;
             myURL = url;
             fatherURL = fUrl;
@@ -64,6 +70,7 @@ namespace SESDAD
 
         public Broker(string name, string url, int filtering)
         {
+            Console.WriteLine("iniciei2");
             processname = name;
             myURL = url;
             myPort = parseURL(url);
