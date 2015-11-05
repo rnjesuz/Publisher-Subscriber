@@ -7,8 +7,8 @@
     <ProjectGuid>{AA2E7C7E-E37A-4423-842F-EB493F007BA8}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Broker</RootNamespace>
-    <AssemblyName>Broker</AssemblyName>
+    <RootNamespace>BrokerConsole</RootNamespace>
+    <AssemblyName>BrokerConsole</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -45,7 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Broker.cs" />
+    <Compile Include="BrokerConsole.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

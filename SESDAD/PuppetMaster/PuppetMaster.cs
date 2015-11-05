@@ -134,7 +134,7 @@ namespace SESDAD
                                         //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
                                         string[] args = new string[3] { parsedLine[1], parsedLine[7], eventRouting.ToString() };
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
-                                        startInfo.FileName = "broker.exe";
+                                        startInfo.FileName = "brokerconsole.exe";
                                         startInfo.Arguments = String.Join(" ", args);
                                         Process.Start(startInfo);
                                     }
