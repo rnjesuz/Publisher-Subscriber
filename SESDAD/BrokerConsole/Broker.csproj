@@ -7,8 +7,8 @@
     <ProjectGuid>{AA2E7C7E-E37A-4423-842F-EB493F007BA8}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BrokerConsole</RootNamespace>
-    <AssemblyName>BrokerConsole</AssemblyName>
+    <RootNamespace>Broker</RootNamespace>
+    <AssemblyName>Broker</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
