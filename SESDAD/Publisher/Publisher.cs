@@ -116,7 +116,7 @@ namespace SESDAD
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
                     try {
-                        broker.ReceivePublication(publication, myURL, myTopic);
+                        broker.ReceivePublication(publication, myURL, myTopic, myURL);
                     }
                     catch (System.Net.Sockets.SocketException)
                     {

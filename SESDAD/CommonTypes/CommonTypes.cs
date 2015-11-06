@@ -19,8 +19,8 @@ namespace SESDAD
         void ConnectPublisher(string subURL);
         void ChangePublishTopic(string pubURL, string topic);
         void ConnectFatherBroker(string url);
-        void ReceivePublication(string publication, string pubURL, string topic);
-        void PropagatePublication(string publication, string pubURL, string topic);
+        void ReceivePublication(string publication, string pubURL, string topic, string propagatorURL);
+        void PropagatePublication(string publication, string pubURL, string topic, string propagatorURL);
         void SendPublication(string publication, string pubURL, string publicationTopic);
         void AddChild(string url);
         void Kill();

@@ -82,10 +82,14 @@ namespace SESDAD
         Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
         Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
+
         //Father node in the Broker Tree. CAN be NULL. root of the tree
-        BrokerInterface fatherBroker;
+        //BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL. last leaf
-        List<BrokerInterface> childBroker = new List<BrokerInterface>();
+        //List<BrokerInterface> childBroker = new List<BrokerInterface>();
+
+        string fatherBroker;
+        List<string> childBroker = new List<string>();
 
         //List of father's interested subscription. NULL unless routing is mode filtering
         List<string> fatherSubscriptions = new List<string>();
@@ -96,7 +100,7 @@ namespace SESDAD
         private string myURL = Broker.myURL;
 
         // 0 did NOT porpagate yet; 1 already porpagate
-        private int propagate = 0;
+        //private int propagate = 0;
 
         //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
@@ -143,11 +147,15 @@ namespace SESDAD
                     if (isFiltering == 1)
                     {
                         if (fatherBroker != null)
-                            fatherBroker.NewSubscriptionForFather(myURL, subscription);
-
-                        foreach (BrokerInterface bi in childBroker)
                         {
-                            bi.NewSubscriptionForChild(subscription);
+                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                            fatherBI.NewSubscriptionForFather(myURL, subscription);
+                        }
+
+                        foreach (string child in childBroker)
+                        {
+                            BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                            childBI.NewSubscriptionForChild(subscription);
                         }
                     }
                 }
@@ -184,11 +192,14 @@ namespace SESDAD
                     if (isFiltering == 1)
                     {
                         if (fatherBroker != null)
-                            fatherBroker.RemoveSubscriptionForFather(myURL, topic);
-
-                        foreach (BrokerInterface bi in childBroker)
                         {
-                            bi.RemoveSubscriptionForChild(topic);
+                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                            fatherBI.RemoveSubscriptionForFather(myURL, topic);
+                        }
+                        foreach (string child in childBroker)
+                        {
+                            BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                            childBI.RemoveSubscriptionForChild(topic);
                         }
                     }
 
@@ -238,8 +249,9 @@ namespace SESDAD
         {
             if (url != null)
             {
-                fatherBroker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
-                fatherBroker.AddChild(myURL);
+                fatherBroker = url;
+                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+                fatherBI.AddChild(myURL);
                 Console.WriteLine("Added father");
             }
         }
@@ -248,10 +260,11 @@ namespace SESDAD
         public void AddChild(string url)
         {
             //adds child to list of childs
-            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
-            if (!(childBroker.Contains(bi)) && childBroker != null)
+                    //????????BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+            if (!(childBroker.Contains(url)) && childBroker != null)
             {
-                childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
+                //?????????childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
+                childBroker.Add(url);
                 Console.WriteLine("Added child");
             }
             //creates and entrance in the hashmap for this child and its future subscriptions.
@@ -264,43 +277,43 @@ namespace SESDAD
         //method called by a publisher to publish a publication
         //or
         //method called by a child broker to propagate a publication
-        public void ReceivePublication(string publication, string pubURL, string topic)
+        public void ReceivePublication(string publication, string pubURL, string topic, string propagatorURL)
         {
             if (isFreeze == 0)
             {
                 Console.WriteLine("[ReceivePublication]");
-                if (propagate == 0)
-                {
-                    propagate = 1;
-                    PropagatePublication(publication, pubURL, topic);
-                }
+                //if (propagate == 0)
+                //{
+                    //propagate = 1;
+                    PropagatePublication(publication, pubURL, topic, propagatorURL);
+                //}
 
                 Console.WriteLine("Calling SendPublication");
                 SendPublication(publication, pubURL, topic);
                 Console.WriteLine("[End of ReceivePublication]");
                 Console.WriteLine("-------------------------------");
             }
-            else { functions.Add(() => this.ReceivePublication(publication, pubURL, topic)); }
+            else { functions.Add(() => this.ReceivePublication(publication, pubURL, topic, propagatorURL)); }
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
-        public void PropagatePublication(string publication, string pubURL, string topic)
+        public void PropagatePublication(string publication, string pubURL, string topic, string propagatorURL)
         {
             if (isFreeze == 0)
             {
                 bool wasTherePropagation = false;
 
                 Console.WriteLine("[PropagatePublication]");
-                Console.WriteLine("estou em modo " + isFiltering.ToString());
                 //mode flooding
                 if (isFiltering == 0)
                 {
                     //check if Broker is tree root
-                    if (fatherBroker != null)
+                    if ((fatherBroker != null) && (!fatherBroker.Equals(propagatorURL)))
                     {
                         Console.WriteLine("Propagating to father");
-                        fatherBroker.ReceivePublication(publication, pubURL, topic);
+                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                        fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
                         Console.WriteLine("Propagated");
 
                         wasTherePropagation = true;
@@ -308,13 +321,17 @@ namespace SESDAD
 
                     if (childBroker != null)
                     {
-                        foreach (BrokerInterface child in childBroker)
+                        foreach (string child in childBroker)
                         {
-                            Console.WriteLine("Propagating to child(s)");
-                            child.ReceivePublication(publication, pubURL, topic);
-                            Console.WriteLine("Propagated");
+                            if (!child.Equals(propagatorURL))
+                            {
+                                Console.WriteLine("Propagating to child(s)");
+                                BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                childBI.ReceivePublication(publication, pubURL, topic, myURL);
+                                Console.WriteLine("Propagated");
 
-                            wasTherePropagation = true;
+                                wasTherePropagation = true;
+                            }                            
                         }
                     }
                 }
@@ -328,7 +345,8 @@ namespace SESDAD
                         if (subscription.Equals(topic))
                         {
                             Console.WriteLine("Propagating to father");
-                            fatherBroker.ReceivePublication(publication, pubURL, topic);
+                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                            fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
                             Console.WriteLine("Propagated");
 
                             wasTherePropagation = true;
@@ -344,7 +362,7 @@ namespace SESDAD
                             {
                                 Console.WriteLine("Propagating to child(s)");
                                 BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
-                                bi.ReceivePublication(publication, pubURL, topic);
+                                bi.ReceivePublication(publication, pubURL, topic, myURL);
                                 Console.WriteLine("Propagated");
 
                                 wasTherePropagation = true;
@@ -363,7 +381,7 @@ namespace SESDAD
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
             }
-            else { functions.Add(() => this.PropagatePublication(publication, pubURL, topic)); }
+            else { functions.Add(() => this.PropagatePublication(publication, pubURL, topic, myURL)); }
         }
 
         //method used to send the publication to one or several subscribers of the broker
@@ -386,7 +404,7 @@ namespace SESDAD
                         }
                     }
                 }
-                propagate = 0;
+                //propagate = 0;
                 Console.WriteLine("Finished sending publication");
                 Console.WriteLine("[End of SendPublication]");
                 Console.WriteLine("-------------------------------");
@@ -455,9 +473,10 @@ namespace SESDAD
                 if (childBroker != null)
                 {
                     Console.WriteLine("I have " + childBroker.Count + " child Nodes");
-                    foreach (BrokerInterface bi in childBroker)
+                    foreach (string child in childBroker)
                     {
-                        bi.StatusUpdate();
+                        BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                        childBI.StatusUpdate();
                     }
                 }
                 Console.WriteLine("[End of Status Report]");
@@ -471,9 +490,22 @@ namespace SESDAD
             Console.WriteLine("One of my childs has a new subscription");
             childsSubscriptions[childURL].Add(subscription);
 
-            //test is there a father to send to
+            //test is there's a father to send to
             if (fatherBroker != null)
-                fatherBroker.NewSubscriptionForFather(myURL, subscription);
+            {
+                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                fatherBI.NewSubscriptionForFather(myURL, subscription);
+            }
+
+            //check if i have more than 1 child. if i do i propagate to them i have a new subsciption
+            foreach(string child in childBroker)
+            {
+                if (!child.Equals(childURL))
+                {
+                    BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                    childBI.NewSubscriptionForChild(subscription);
+                }
+            }
         }
 
         public void NewSubscriptionForChild(string subscription)
@@ -483,9 +515,10 @@ namespace SESDAD
 
             //send interests to my own childs.
             //no need to test for null the foreach doe sit for us
-            foreach (BrokerInterface bi in childBroker)
+            foreach (string child in childBroker)
             {
-                bi.NewSubscriptionForChild(subscription);
+                BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                childBI.NewSubscriptionForChild(subscription);
             }
         }
 
@@ -496,7 +529,20 @@ namespace SESDAD
 
             //test if there's a father to send to
             if (fatherBroker != null)
-                fatherBroker.RemoveSubscriptionForFather(myURL, topic);
+            {
+                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                fatherBI.RemoveSubscriptionForFather(myURL, topic);
+            }
+
+            //check if i have more than 1 child. if i do i propagate to them i no longer have insterest in this subscription
+            foreach (string child in childBroker)
+            {
+                if (!child.Equals(childURL))
+                {
+                    BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                    childBI.NewSubscriptionForChild(topic);
+                }
+            }
         }
 
         public void RemoveSubscriptionForChild(string topic)
@@ -506,9 +552,10 @@ namespace SESDAD
 
             //remove interests from child
             //no need to test for null the foreach does it for us
-            foreach (BrokerInterface bi in childBroker)
+            foreach (string child in childBroker)
             {
-                bi.RemoveSubscriptionForChild(topic);
+                BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                childBI.RemoveSubscriptionForChild(topic);
             }
         }
     }

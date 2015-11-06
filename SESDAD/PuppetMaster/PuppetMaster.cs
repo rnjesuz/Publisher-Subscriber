@@ -120,7 +120,7 @@ namespace SESDAD
                         switch (parsedLine[3])
                         {
                             case "broker":
-                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     SiteToBroker.Add(parsedLine[5], parsedLine[7]);
                                     brokerTable.Add(parsedLine[1], parsedLine[7]);
@@ -149,7 +149,7 @@ namespace SESDAD
                                 break;
 
                             case "publisher":
-                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
                                     //new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
@@ -164,7 +164,7 @@ namespace SESDAD
                                 break;
 
                             case "subscriber":
-                                if (parsedLine[0].Equals("Process") && parsedLine[2].Equals("Is") && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
+                                if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
                                     //new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
@@ -201,6 +201,10 @@ namespace SESDAD
                                 break;
 
                             case "filter":
+                                eventRouting = 1;
+                                break;
+
+                            case "filtering":
                                 eventRouting = 1;
                                 break;
                         }
@@ -390,6 +394,7 @@ namespace SESDAD
                     }
                     break;
                 case "Wait":
+                    Console.WriteLine("Sleeping... zZZzzZ");
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
                     //TODO go sleep. how do u auto sleep?
                     System.Threading.Thread.Sleep(sleepInterval);
