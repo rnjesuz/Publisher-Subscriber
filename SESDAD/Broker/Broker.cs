@@ -16,7 +16,7 @@ namespace SESDAD
         private string processname;
         //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
         internal static int isFiltering = 0;
-      
+
         static void Main(string[] args)
         {
             //TODO remove when PuppetMaster is implemented
@@ -37,7 +37,7 @@ namespace SESDAD
             IDictionary props = new Hashtable();
             props["port"] = myPort;
             TcpChannel channel = new TcpChannel(props, null, provider);
-            
+
             //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
@@ -260,7 +260,7 @@ namespace SESDAD
         public void AddChild(string url)
         {
             //adds child to list of childs
-                    //????????BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+            //????????BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
             if (!(childBroker.Contains(url)) && childBroker != null)
             {
                 //?????????childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
@@ -284,8 +284,8 @@ namespace SESDAD
                 Console.WriteLine("[ReceivePublication]");
                 //if (propagate == 0)
                 //{
-                    //propagate = 1;
-                    PropagatePublication(publication, pubURL, topic, propagatorURL);
+                //propagate = 1;
+                PropagatePublication(publication, pubURL, topic, propagatorURL);
                 //}
 
                 Console.WriteLine("Calling SendPublication");
@@ -331,7 +331,7 @@ namespace SESDAD
                                 Console.WriteLine("Propagated");
 
                                 wasTherePropagation = true;
-                            }                            
+                            }
                         }
                     }
                 }
@@ -341,31 +341,37 @@ namespace SESDAD
                     //check if father is interested
                     foreach (string subscription in fatherSubscriptions)
                     {
-                        Console.WriteLine("sub: " + subscription);
-                        if (subscription.Equals(topic))
+                        if (!fatherBroker.Equals(propagatorURL))
                         {
-                            Console.WriteLine("Propagating to father");
-                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
-                            fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
-                            Console.WriteLine("Propagated");
+                            Console.WriteLine("sub: " + subscription);
+                            if (subscription.Equals(topic))
+                            {
+                                Console.WriteLine("Propagating to father");
+                                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                                fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
+                                Console.WriteLine("Propagated");
 
-                            wasTherePropagation = true;
+                                wasTherePropagation = true;
+                            }
                         }
                     }
 
                     //check if any child is intereted
                     foreach (string child in childsSubscriptions.Keys)
                     {
-                        foreach (string subscription in childsSubscriptions[child])
+                        if (child != propagatorURL)
                         {
-                            if (subscription.Equals(topic))
+                            foreach (string subscription in childsSubscriptions[child])
                             {
-                                Console.WriteLine("Propagating to child(s)");
-                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
-                                bi.ReceivePublication(publication, pubURL, topic, myURL);
-                                Console.WriteLine("Propagated");
+                                if (subscription.Equals(topic))
+                                {
+                                    Console.WriteLine("Propagating to child(s)");
+                                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                    bi.ReceivePublication(publication, pubURL, topic, myURL);
+                                    Console.WriteLine("Propagated");
 
-                                wasTherePropagation = true;
+                                    wasTherePropagation = true;
+                                }
                             }
                         }
                     }
@@ -498,7 +504,7 @@ namespace SESDAD
             }
 
             //check if i have more than 1 child. if i do i propagate to them i have a new subsciption
-            foreach(string child in childBroker)
+            foreach (string child in childBroker)
             {
                 if (!child.Equals(childURL))
                 {
