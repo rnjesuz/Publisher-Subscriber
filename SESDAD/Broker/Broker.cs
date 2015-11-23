@@ -281,6 +281,12 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
+
+                Console.WriteLine("Started call for Log Update");
+                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
+                Console.WriteLine("Ended call for Log Update");
+
                 Console.WriteLine("[ReceivePublication]");
                 //if (propagate == 0)
                 //{
@@ -302,8 +308,6 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                bool wasTherePropagation = false;
-
                 Console.WriteLine("[PropagatePublication]");
                 //mode flooding
                 if (isFiltering == 0)
@@ -315,8 +319,6 @@ namespace SESDAD
                         BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                         fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
                         Console.WriteLine("Propagated");
-
-                        wasTherePropagation = true;
                     }
 
                     if (childBroker != null)
@@ -329,8 +331,6 @@ namespace SESDAD
                                 BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                                 childBI.ReceivePublication(publication, pubURL, topic, myURL);
                                 Console.WriteLine("Propagated");
-
-                                wasTherePropagation = true;
                             }
                         }
                     }
@@ -350,8 +350,6 @@ namespace SESDAD
                                 BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                                 fatherBI.ReceivePublication(publication, pubURL, topic, myURL);
                                 Console.WriteLine("Propagated");
-
-                                wasTherePropagation = true;
                             }
                         }
                     }
@@ -369,21 +367,11 @@ namespace SESDAD
                                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                                     bi.ReceivePublication(publication, pubURL, topic, myURL);
                                     Console.WriteLine("Propagated");
-
-                                    wasTherePropagation = true;
                                 }
                             }
                         }
                     }
-                }
-                if (wasTherePropagation)
-                {
-                    Console.WriteLine("Started call for Log Update");
-                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                    PM.UpdateEventLog("BroEvent", myURL, pubURL, topic);
-                    Console.WriteLine("Ended call for Log Update");
-                    wasTherePropagation = false;
-                }
+                }               
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
             }

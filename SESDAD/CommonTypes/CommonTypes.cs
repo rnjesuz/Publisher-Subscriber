@@ -37,6 +37,7 @@ namespace SESDAD
     {
         void ChangeTopic(string topic);
         void SendPublication(string publication);
+        void MultipleSendPublication(string publication, int sleepInterval, int numberofevents);
         void Kill();
         void Freeze();
         void Unfreeze();

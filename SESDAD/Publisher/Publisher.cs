@@ -132,6 +132,38 @@ namespace SESDAD
             else { functions.Add(() => this.SendPublication(publication)); }
         }
 
+        public void MultipleSendPublication(string publication, int sleepInterval, int numberofevents)
+        {
+            if (isFreeze == 0)
+            {
+                new Thread(() =>
+                {
+                    int sequenceNumber = 0;
+                    for (int i = 0; i < numberofevents; i++)
+                    {
+                        sequenceNumber += 1;
+                        if (myTopic != null)
+                        {
+                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                            PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+                            try
+                            {
+                                broker.ReceivePublication(publication + sequenceNumber, myURL, myTopic, myURL);
+                            }
+                            catch (System.Net.Sockets.SocketException)
+                            {
+                                Console.WriteLine("can't connect to broker");
+                            }
+
+                        }
+                        System.Threading.Thread.Sleep(sleepInterval);
+                        // SendPublication(publication + sequenceNumber);
+                    }
+                }).Start();
+        }
+            else { functions.Add(() => this.SendPublication(publication)); }
+        }
+
         public void Kill()
         {
             if (isFreeze == 0)

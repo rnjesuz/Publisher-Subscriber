@@ -439,7 +439,8 @@ namespace SESDAD
         private Dictionary<string, string> publisherTable = PuppetMaster.publisherTable;
         //HashTable with the the subsribers and it's URL. <subsribers, URL>
         private Dictionary<string, string> subscriberTable = PuppetMaster.subscriberTable;
-
+        //Monitor to make the access to the Log file thread safe.
+        object logMonitor = new object();
 
         /*
         write the received update into the Log file
@@ -483,19 +484,21 @@ namespace SESDAD
             }
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
-            
-            if (!File.Exists(path))
+            lock(logMonitor)
             {
-                File.Create(path);
-                TextWriter tw = new StreamWriter(path);
-                tw.WriteLine(text);
-                tw.Close();
-            }
-            else if (File.Exists(path))
-            {
-                TextWriter tw = new StreamWriter(path, true);
-                tw.WriteLine(text);
-                tw.Close();
+                if (!File.Exists(path))
+                {
+                    File.Create(path);
+                    TextWriter tw = new StreamWriter(path);
+                    tw.WriteLine(text);
+                    tw.Close();
+                }
+                else if (File.Exists(path))
+                {
+                    TextWriter tw = new StreamWriter(path);
+                    tw.WriteLine(text);
+                    tw.Close();
+                }
             }
         }
 
@@ -514,14 +517,8 @@ namespace SESDAD
         public void SendPublishOrder(string pubURL, string processName, string topicname, int numberofevents, int sleepInterval)
         {
             PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pubURL);
-            int sequenceNumber = 0;
             pub.ChangeTopic(topicname);
-            for (int i = 0; i< numberofevents; i++)
-            {
-                sequenceNumber += 1;
-                System.Threading.Thread.Sleep(sleepInterval);
-                pub.SendPublication("Publisher: " + processName + "; event " + sequenceNumber);
-            }
+            pub.MultipleSendPublication(topicname +": Publisher: " + processName + "; event ", sleepInterval, numberofevents);
         }
 
         public void KillBroker(string URL)
