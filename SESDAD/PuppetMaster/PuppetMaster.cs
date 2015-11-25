@@ -523,6 +523,8 @@ namespace SESDAD
             }
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
+            //TODO change if statements - they're too expensive
+            //TODO if file.create even needed?
             lock (logMonitor)
             {
                 if (!File.Exists(path))
