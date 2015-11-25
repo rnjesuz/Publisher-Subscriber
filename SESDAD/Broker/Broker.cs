@@ -11,7 +11,7 @@ namespace SESDAD
 {
     public class Broker
     {
-        private static int myPort;
+        internal static int myPort;
         internal static string myURL = null;
         internal static string fatherURL = null;
         internal static string processname;
@@ -19,6 +19,7 @@ namespace SESDAD
         internal static int isFiltering = 0;
         internal static int brokerType = 0;
         internal static string replicaURL;
+        internal static TcpChannel channel;
 
         static void Main(string[] args)
         {
@@ -55,7 +56,7 @@ namespace SESDAD
                 props["port"] = myPort;
             }
 
-            TcpChannel channel = new TcpChannel(props, null, provider);
+            channel = new TcpChannel(props, null, provider);
 
             //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
@@ -139,6 +140,10 @@ namespace SESDAD
             Console.WriteLine(newURL);
             return newURL;
         }
+        public void ConnectReplica()
+        {
+
+        }
     }
 
     class RemoteBroker : MarshalByRefObject, BrokerInterface
@@ -196,10 +201,30 @@ namespace SESDAD
                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
                     bi.ReceivePing();
                 }
-                catch (SocketException e)
+                //TODO catch right exception
+                //unknowservice??
+                catch (Exception)
                 {
-                    Console.WriteLine("Deu bosta");
+                    Console.WriteLine("Main broker died, attempting to take over...");
+                    try {
+                        ChannelServices.UnregisterChannel(Broker.channel);
 
+                        BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+                        provider.TypeFilterLevel = TypeFilterLevel.Full;
+                        IDictionary props = new Hashtable();
+                        props["port"] = Broker.myPort;
+                        TcpChannel newchannel = new TcpChannel(props, null, provider);                      
+                        ChannelServices.RegisterChannel(newchannel, false);
+                        RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
+
+                        BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+                        rb.ConnectFatherBroker(Broker.fatherURL);
+                        Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
+                        return;
+                    }
+                    //TODO catch right exception
+                    //duplicateservice?
+                    catch (Exception) { }
                 }
             }
            

@@ -356,11 +356,11 @@ namespace SESDAD
                 case "Crash":
                     try {
                         processname = inputParsed.ElementAt(1);
-                        //TODO crash a node. Use SIGKILL??
                         if (processname.Contains("broker"))
                         {                            
                             remotePM.KillBroker(brokerTable[processname]);
-                            brokerTable.Remove(processname);
+                            //TODO make sure a broker is not allowed to crash more than 3 times
+                            //brokerTable.Remove(processname);
                         }
                         else if (processname.Contains("subscriber"))
                         {                            
@@ -492,6 +492,8 @@ namespace SESDAD
         {
             string process1Name;
             string process2Name;
+            //bollean that has value true after first iteration of method. On first iteration a new file must be created
+            bool fileCreated = false;
             
             //p1 can be a subscriber, publisher or broker.
             //to generalize the method there's no way to know which one it is
@@ -521,7 +523,7 @@ namespace SESDAD
             }
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
-            lock(logMonitor)
+            lock (logMonitor)
             {
                 if (!File.Exists(path))
                 {
