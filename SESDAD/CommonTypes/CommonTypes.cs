@@ -13,6 +13,8 @@ namespace SESDAD
 
     public interface BrokerInterface
     {
+        void StartPing();
+        void ReceivePing();
         void ConnectSubscriber(string pubURL);
         void AddSubscription(string subURL, string subscription);
         void RemoveSubscription(string subURL, string topic);

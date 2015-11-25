@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
@@ -13,9 +14,11 @@ namespace SESDAD
         private static int myPort;
         internal static string myURL = null;
         internal static string fatherURL = null;
-        private string processname;
+        internal static string processname;
         //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
         internal static int isFiltering = 0;
+        internal static int brokerType = 0;
+        internal static string replicaURL;
 
         static void Main(string[] args)
         {
@@ -23,48 +26,87 @@ namespace SESDAD
             // myPort = 8086;
             //TODO remove after PuppetMaster is implemented
             //myURL = "tcp://localhost:"+myPort+"/broker";
-            if (args.Length == 4)
+            if (args.Length == 5)
             {
-                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]));
+                brokerType = Int32.Parse(args[4]);
+                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]), Int32.Parse(args[4]) );
             }
             else
             {
-                new Broker(args[0], args[1], Int32.Parse(args[2]));
+                brokerType = Int32.Parse(args[3]);
+                new Broker(args[0], args[1], Int32.Parse(args[2]), Int32.Parse(args[3]) );
             }
 
             BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
             provider.TypeFilterLevel = TypeFilterLevel.Full;
             IDictionary props = new Hashtable();
-            props["port"] = myPort;
+            if (brokerType == 1)
+            {
+                int newPort = myPort + 1337;
+                props["port"] = newPort;
+            }
+            else if(brokerType == 2)
+            {
+                int newPort = myPort + 1338;
+                props["port"] = newPort;
+            }
+            else
+            {
+                props["port"] = myPort;
+            }
+
             TcpChannel channel = new TcpChannel(props, null, provider);
 
             //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
-
-            BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
-            rb.ConnectFatherBroker(fatherURL);
-
+            if(brokerType == 0)
+            {
+                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
+                BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+                rb.ConnectFatherBroker(fatherURL);
+            }
+            else
+            {
+                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  processname, WellKnownObjectMode.Singleton);
+                Console.WriteLine(replicaURL);
+                BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), replicaURL);
+                rb.StartPing();
+            }
+                    
             //solely to prevent console from closing
             while (true) { }
         }
 
-        public Broker(string name, string url, string fUrl, int filtering)
+        //constructor for the root broker ( no father)
+        public Broker(string name, string url, string fUrl, int filtering, int _brokerType)
         {
             processname = name;
             myURL = url;
             fatherURL = fUrl;
             myPort = parseURL(url);
             isFiltering = filtering;
+            brokerType = _brokerType;
+            if(brokerType != 0)
+            {
+                replicaURL = transformURL(url);
+            }
+            Console.WriteLine("processname: " + processname);
         }
 
-        public Broker(string name, string url, int filtering)
+        //constructor for leafe broker (has a father)
+        public Broker(string name, string url, int filtering, int _brokerType)
         {
             processname = name;
             myURL = url;
             myPort = parseURL(url);
             isFiltering = filtering;
+            brokerType = _brokerType;
+            if (brokerType != 0)
+            {
+                replicaURL = transformURL(url);
+            }
+            Console.WriteLine("processname: " + processname);
         }
 
         public int parseURL(string url)
@@ -73,6 +115,29 @@ namespace SESDAD
             string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
             myPort = int.Parse(parsedURLv2[0]);
             return myPort;
+        }
+
+        //method used by broker replics to tranform their url form the leader's
+        //e.g tcp://localhost:3337/broker becomes tcp://localhost:4674/broker0-1
+        public string transformURL(string url)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+
+            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            if(brokerType == 1)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+            if(brokerType == 2)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+
+            //if leader is broker0 then replica becomes broker0-1 or broker0-2
+            parsedURLv2[1] = processname;
+            //rejoin modified parsels into the new URL
+            string newURLv2 = string.Join("/", parsedURLv2);
+            parsedURL[2] = newURLv2;
+            string newURL = string.Join(":", parsedURL);
+            Console.WriteLine(newURL);
+            return newURL;
         }
     }
 
@@ -111,7 +176,34 @@ namespace SESDAD
         //List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
 
+        //am i the leader or a replication? (0 for lider, 1 for replication)
+        private int brokerType = Broker.brokerType;
 
+        //constructor for remoteobject iniatialization
+        public void StartPing()
+        {
+            //check if replica
+            //if replica: keep trying to connect to leader ( active replication)
+            //at first fail try and become leader.  if promotion fails check if another replica was faster: true - stay in replica cycle, false - keep trying to become leader
+            //replica does ping, leader DOESN'T reply pong.
+
+            //sleep to make sure leader had time to be initialized before pinging him
+            System.Threading.Thread.Sleep(10000);
+            while (true)
+            {
+                try
+                {
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+                    bi.ReceivePing();
+                }
+                catch (SocketException e)
+                {
+                    Console.WriteLine("Deu bosta");
+
+                }
+            }
+           
+        }
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
         {
@@ -551,6 +643,11 @@ namespace SESDAD
                 BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                 childBI.RemoveSubscriptionForChild(topic);
             }
+        }
+
+        public void ReceivePing()
+        {
+            
         }
     }
 }

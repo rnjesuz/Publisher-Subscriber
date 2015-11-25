@@ -128,21 +128,58 @@ namespace SESDAD
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
-                                        string[] args = new string[3] { parsedLine[1], parsedLine[7], eventRouting.ToString() };
+                                        string[] args = new string[4] { parsedLine[1], parsedLine[7], eventRouting.ToString(), "0" };
+                                        string[] argsReplica1 = new string[4] { parsedLine[1] + "-1", parsedLine[7], eventRouting.ToString(), "1" };
+                                        string[] argsReplica2 = new string[4] { parsedLine[1] + "-2", parsedLine[7], eventRouting.ToString(), "2" };
+
+
+                                        //create leader
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", args);
+                                        Process.Start(startInfo);
+
+                                        //create first replica
+                                        startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", argsReplica1);
+                                        Process.Start(startInfo);
+
+                                        //create second replica
+                                        startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", argsReplica2);
                                         Process.Start(startInfo);
                                     }
                                     else
                                     {
                                         // new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
-                                        string[] args = new string[4] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString() };
+                                        //last argument: 0/1 indicates type of broker instance. 0 for leader, 1 for replic 
+                                        string[] args = new string[5] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "0" };
+                                        string[] argsReplica1 = new string[5] { parsedLine[1]+"-1", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "1" };
+                                        string[] argsReplica2 = new string[5] { parsedLine[1]+"-2", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "2" };
+
+
+                                        //create leader
                                         ProcessStartInfo startInfo = new ProcessStartInfo();
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", args);
                                         Process.Start(startInfo);
+
+                                        //create first replica
+                                        startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", argsReplica1);
+                                        Process.Start(startInfo);
+
+                                        //create second replica
+                                        startInfo = new ProcessStartInfo();
+                                        startInfo.FileName = "broker.exe";
+                                        startInfo.Arguments = String.Join(" ", argsReplica2);
+                                        Process.Start(startInfo);
                                     }
+
+
                                 }
                                 else
                                     Console.WriteLine("Process broker wrongly formatted");
@@ -640,8 +677,44 @@ namespace SESDAD
             }
             foreach (string brkURL in brokerTable.Values)
             {
-                KillBroker(brkURL);
+                try
+                {
+                    //use leader URL to get replicas URL
+                    string brkReplica1 = transformURL(brokerTable.FirstOrDefault(x => x.Value.Contains(brkURL)).Key, brkURL, 1);
+                    KillBroker(brkReplica1);
+                    try
+                    {
+                        //use leader URL to get replicas URL
+                        string brkReplica2 = transformURL(brokerTable.FirstOrDefault(x => x.Value.Contains(brkURL)).Key, brkURL, 2);
+                        KillBroker(brkReplica2);
+                    }
+                    finally{ }
+                }            
+                finally
+                {
+                    KillBroker(brkURL);
+                }
             }
+        }
+
+        private string transformURL(string processname, string url, int replicaNum)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+
+            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            if (replicaNum == 1)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+            if (replicaNum == 2)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+
+            //if leader is broker0 then replica becomes broker0-1 or broker0-2
+            parsedURLv2[1] = processname + "-" + replicaNum;
+            //rejoin modified parsels into the new URL
+            string newURLv2 = string.Join("/", parsedURLv2);
+            parsedURL[2] = newURLv2;
+            string newURL = string.Join(":", parsedURL);
+            return newURL;
         }
     }
 }
