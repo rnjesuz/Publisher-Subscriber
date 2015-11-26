@@ -36,6 +36,9 @@ namespace SESDAD
 
         void ConnectSubscriberReplica(string pubURL);
         void ConnectPublisherReplica(string pubURL);
+        void AddSubscriptionReplica(string subURL, string subscription);
+        void RemoveSubscriptionReplica(string subURL, string subscription);
+        void ChangePublishingTopicReplica(string pubURL, string topic);
     }
 
     public interface PublisherInterface

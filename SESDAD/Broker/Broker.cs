@@ -191,6 +191,8 @@ namespace SESDAD
                 {
                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
                     bi.ReceivePing();
+                    Console.WriteLine("ping");
+                    System.Threading.Thread.Sleep(5000);
                 }
                 //TODO catch right exception
                 //unknowservice??
@@ -198,27 +200,29 @@ namespace SESDAD
                 {
                     Console.WriteLine("Main broker died, attempting to take over...");
                     try {
-                        lock (replicaMonitor)
-                        {
+                        // lock (replicaMonitor)
+                        //{
+                        Console.WriteLine("Unregestering");
                             ChannelServices.UnregisterChannel(Broker.channel);
-
+                        Console.WriteLine("Doing channel properties");
                             BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
                             provider.TypeFilterLevel = TypeFilterLevel.Full;
                             IDictionary props = new Hashtable();
                             props["port"] = Broker.myPort;
                             TcpChannel newchannel = new TcpChannel(props, null, provider);
+                        Console.WriteLine("Registeting");
                             ChannelServices.RegisterChannel(newchannel, false);
-                            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
 
                             BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
                             rb.ConnectFatherBroker(Broker.fatherURL);
                             Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
                             return;
-                        }
+                      //  }
                     }
                     //TODO catch right exception
                     //duplicateservice?
                     catch (Exception) {
+                        Console.WriteLine("Take over failed, returning to passive mode");
                         ChannelServices.RegisterChannel(Broker.channel, false);
                     }
                 }
@@ -278,6 +282,14 @@ namespace SESDAD
                             childBI.NewSubscriptionForChild(subscription);
                         }
                     }
+
+                    //now, propagate to replicas
+                    string brkReplica1 = transformURL(Broker.processname, myURL, 1);
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.AddSubscriptionReplica(subURL, subscription);
+                    string brkReplica2 = transformURL(Broker.processname, myURL, 2);
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.AddSubscriptionReplica(subURL, subscription);
                 }
                 else
                 {
@@ -324,6 +336,14 @@ namespace SESDAD
                         }
                     }
 
+                    //now, propagate to replicas
+                    string brkReplica1 = transformURL(Broker.processname, myURL, 1);
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.RemoveSubscriptionReplica(subURL, topic);
+                    string brkReplica2 = transformURL(Broker.processname, myURL, 2);
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.RemoveSubscriptionReplica(subURL, topic);
+
                 }
                 else
                 {
@@ -368,6 +388,14 @@ namespace SESDAD
                     //TODO trow and exception to the publisher
                     Console.WriteLine("There is no such Publisher connected to this Broker");
                 }
+
+                //now, propagate to replicas
+                string brkReplica1 = transformURL(Broker.processname, myURL, 1);
+                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                bi.ChangePublishingTopicReplica(pubURL, topic);
+                string brkReplica2 = transformURL(Broker.processname, myURL, 2);
+                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                bi2.ChangePublishingTopicReplica(pubURL, topic);
             }
             else { functions.Add(() => this.ChangePublishTopic(pubURL, topic)); }
         }
@@ -714,20 +742,93 @@ namespace SESDAD
         }
 
         //method to propagate connections from leader to replicas
+        //the replica then adds the connection to it's list
         public void ConnectSubscriberReplica(string subURL)
         {
             //add subscriber to the Dictionary.
             List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
             subscribers.Add(subURL, auxlist);
-            System.Console.WriteLine("Subscriber at: " + subURL + " connected");
+            System.Console.WriteLine("Replica:Subscriber at: " + subURL + " connected");
         }
 
         //method to propagate connections from leader to replicas
+        //the replica then adds the connection to it's list
         public void ConnectPublisherReplica(string pubURL)
         {
                 //add publisher to the Dictionary.
                 publishers.Add(pubURL, "root");
-                Console.WriteLine("Publisher at: " + pubURL + " connected");
+                Console.WriteLine("Replica:Publisher at: " + pubURL + " connected");
+        }
+
+        //method to propagate subscriptions from leader to replicas
+        //the replica then adds the subscription to it's List
+        public void AddSubscriptionReplica(string subURL, string subscription)
+        {
+            /*Verify if subURL is on the List*/
+            if (subscribers.ContainsKey(subURL))
+            {
+                /*Verify if already subscribed to topic*/
+                if (!subscribers[subURL].Contains(subscription))
+                {
+                    subscribers[subURL].Add(subscription);
+                    System.Console.WriteLine("Replica:"+ subURL + " subscribed to: " + subscription);
+                }
+                else
+                {
+                    System.Console.WriteLine("Replica:"+ subURL + " already subscribed to " + subscription);
+                }
+            }
+            else
+            {
+                //TODO throw an exception to the subscriber
+                Console.WriteLine("Replica:There is no such Subscriber connected to this Broker");
+                Console.WriteLine(subURL);
+            }
+        }
+
+        //method to propagate subscription removal from leader to replicas
+        //the replica then removes the subscription from it's List
+        public void RemoveSubscriptionReplica(string subURL, string topic)
+        {
+                Console.WriteLine("[Replica:RemoveSubscription]");
+                //Verify if subURL is on the List
+                if (subscribers.ContainsKey(subURL))
+                {
+                    //Verify subscriber is subscribed to topic
+                    if (subscribers[subURL].Contains(topic))
+                    {
+                        //Normal remove of topic
+                        subscribers[subURL].Remove(topic);
+                        Console.WriteLine("Replica:"+ topic + " removed from " + subURL);
+                    }
+                    else
+                    {
+                        //TODO throw an exception to the subscriber
+                        Console.WriteLine("Replica:There is no such topic");
+                    }
+                }
+                else
+                {
+                    //TODO throw an exception to the subscriber
+                    Console.WriteLine("Replica:There is no such Subscriber connected to this Broker");
+                }
+                Console.WriteLine("-------------------------------");
+        }
+
+        //method to propagate publisher topic from leader to replicas
+        //the replica then associates the topic to the publisher in it's List
+        public void ChangePublishingTopicReplica(string pubURL, string topic)
+        {
+            if (publishers.ContainsKey(pubURL))
+            {
+                publishers[pubURL] = topic;
+                Console.WriteLine("Replica:"+ pubURL + " publishing to: " + topic);
+            }
+            else
+            {
+                //TODO trow and exception to the publisher
+                Console.WriteLine("Replica:There is no such Publisher connected to this Broker");
+            }
         }
     }
 }
