@@ -478,7 +478,7 @@ namespace SESDAD
         private Dictionary<string, string> subscriberTable = PuppetMaster.subscriberTable;
         //Monitor to make the access to the Log file thread safe.
         object logMonitor = new object();
-
+               
         /*
         write the received update into the Log file
         creates file is not existant. appends text if already existent
@@ -536,7 +536,7 @@ namespace SESDAD
                 }
                 else if (File.Exists(path))
                 {
-                    TextWriter tw = new StreamWriter(path);
+                    TextWriter tw = new StreamWriter(path, true);
                     tw.WriteLine(text);
                     tw.Close();
                 }
