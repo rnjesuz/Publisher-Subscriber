@@ -33,8 +33,11 @@ namespace SESDAD
         void NewSubscriptionForChild(string subscription);
         void RemoveSubscriptionForFather(string myURL, string topic);
         void RemoveSubscriptionForChild(string topic);
+
+        void ConnectSubscriberReplica(string pubURL);
+        void ConnectPublisherReplica(string pubURL);
     }
-    
+
     public interface PublisherInterface
     {
         void ChangeTopic(string topic);

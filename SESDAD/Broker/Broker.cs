@@ -69,7 +69,7 @@ namespace SESDAD
             }
             else
             {
-                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  processname, WellKnownObjectMode.Singleton);
+                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  "broker", WellKnownObjectMode.Singleton);
                 Console.WriteLine(replicaURL);
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), replicaURL);
                 rb.StartPing();
@@ -130,9 +130,7 @@ namespace SESDAD
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
             if(brokerType == 2)
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
-
-            //if leader is broker0 then replica becomes broker0-1 or broker0-2
-            parsedURLv2[1] = processname;
+            
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
@@ -152,37 +150,30 @@ namespace SESDAD
         Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
         Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
-
         //Father node in the Broker Tree. CAN be NULL. root of the tree
         //BrokerInterface fatherBroker;
         //Child node in the Broker Tree. CAN be NULL. last leaf
         //List<BrokerInterface> childBroker = new List<BrokerInterface>();
-
         string fatherBroker;
         List<string> childBroker = new List<string>();
-
         //List of father's interested subscription. NULL unless routing is mode filtering
         List<string> fatherSubscriptions = new List<string>();
         //Dictionary between each child and they're interested subscriptions. NULL unless routing is mode filtering
         Dictionary<string, List<string>> childsSubscriptions = new Dictionary<string, List<string>>();
-
         //Url broker
         private string myURL = Broker.myURL;
-
         // 0 did NOT porpagate yet; 1 already porpagate
         //private int propagate = 0;
-
         //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
-
         //boll to tell if systme is in mode filtering(1) or flooding(0) 
         private int isFiltering = Broker.isFiltering;
-
         //List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
-
         //am i the leader or a replication? (0 for lider, 1 for replication)
         private int brokerType = Broker.brokerType;
+        //Monitor for replicas when attempnting to takeover leader
+        object replicaMonitor = new object();
 
         //constructor for remoteobject iniatialization
         public void StartPing()
@@ -207,24 +198,29 @@ namespace SESDAD
                 {
                     Console.WriteLine("Main broker died, attempting to take over...");
                     try {
-                        ChannelServices.UnregisterChannel(Broker.channel);
+                        lock (replicaMonitor)
+                        {
+                            ChannelServices.UnregisterChannel(Broker.channel);
 
-                        BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
-                        provider.TypeFilterLevel = TypeFilterLevel.Full;
-                        IDictionary props = new Hashtable();
-                        props["port"] = Broker.myPort;
-                        TcpChannel newchannel = new TcpChannel(props, null, provider);                      
-                        ChannelServices.RegisterChannel(newchannel, false);
-                        RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
+                            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+                            provider.TypeFilterLevel = TypeFilterLevel.Full;
+                            IDictionary props = new Hashtable();
+                            props["port"] = Broker.myPort;
+                            TcpChannel newchannel = new TcpChannel(props, null, provider);
+                            ChannelServices.RegisterChannel(newchannel, false);
+                            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
 
-                        BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
-                        rb.ConnectFatherBroker(Broker.fatherURL);
-                        Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
-                        return;
+                            BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
+                            rb.ConnectFatherBroker(Broker.fatherURL);
+                            Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
+                            return;
+                        }
                     }
                     //TODO catch right exception
                     //duplicateservice?
-                    catch (Exception) { }
+                    catch (Exception) {
+                        ChannelServices.RegisterChannel(Broker.channel, false);
+                    }
                 }
             }
            
@@ -238,10 +234,17 @@ namespace SESDAD
                 List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
                 subscribers.Add(subURL, auxlist);
                 System.Console.WriteLine("Subscriber at: " + subURL + " connected");
+                //now, propagate to replicas
+                string brkReplica1 = transformURL(Broker.processname, myURL, 1);
+                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                bi.ConnectSubscriberReplica(subURL);
+                string brkReplica2 = transformURL(Broker.processname, myURL, 2);
+                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                bi2.ConnectSubscriberReplica(subURL);
             }
             else { functions.Add(() => this.ConnectSubscriber(subURL)); }
         }
-
+        
         public void AddSubscription(string subURL, string subscription)
         {
             /*Verify if subURL is on the List*/
@@ -280,6 +283,7 @@ namespace SESDAD
                 {
                     //TODO throw an exception to the subscriber
                     Console.WriteLine("There is no such Subscriber connected to this Broker");
+                    Console.WriteLine(subURL);
                 }
             }
             else { functions.Add(() => this.AddSubscription(subURL, subscription)); }
@@ -338,6 +342,13 @@ namespace SESDAD
                 //add publisher to the Dictionary.
                 publishers.Add(pubURL, "root");
                 Console.WriteLine("Publisher at: " + pubURL + " connected");
+                //now, propagate to replicas
+                string brkReplica1 = transformURL(Broker.processname, myURL, 1);
+                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                bi.ConnectPublisherReplica(pubURL);
+                string brkReplica2 = transformURL(Broker.processname, myURL, 2);
+                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                bi2.ConnectPublisherReplica(pubURL);
             }
             else { functions.Add(() => this.ConnectPublisher(pubURL)); }
         }
@@ -673,6 +684,50 @@ namespace SESDAD
         public void ReceivePing()
         {
             
+        }
+
+
+        //--------------------------------------------------------
+        //from now on method are pretty much duplicated.
+        // the difference is this method are used by the leader to keep replicas up to date.
+        //--------------------------------------------------------
+
+        //method to transform a broker url into one of his replicas
+        //done by adding a predefined value into the port
+        //and changing the processname for that of the replica
+        private string transformURL(string processname, string url, int replicaNum)
+        {
+            string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
+            string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
+
+            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            if (replicaNum == 1)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+            if (replicaNum == 2)
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+            
+            //rejoin modified parsels into the new URL
+            string newURLv2 = string.Join("/", parsedURLv2);
+            parsedURL[2] = newURLv2;
+            string newURL = string.Join(":", parsedURL);
+            return newURL;
+        }
+
+        //method to propagate connections from leader to replicas
+        public void ConnectSubscriberReplica(string subURL)
+        {
+            //add subscriber to the Dictionary.
+            List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
+            subscribers.Add(subURL, auxlist);
+            System.Console.WriteLine("Subscriber at: " + subURL + " connected");
+        }
+
+        //method to propagate connections from leader to replicas
+        public void ConnectPublisherReplica(string pubURL)
+        {
+                //add publisher to the Dictionary.
+                publishers.Add(pubURL, "root");
+                Console.WriteLine("Publisher at: " + pubURL + " connected");
         }
     }
 }

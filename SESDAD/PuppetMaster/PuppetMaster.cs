@@ -701,6 +701,9 @@ namespace SESDAD
             }
         }
 
+        //method to transform a broker url into one of his replicas
+        //done by adding a predefined value into the port
+        //and changing the processname for that of the replica
         private string transformURL(string processname, string url, int replicaNum)
         {
             string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
@@ -711,9 +714,7 @@ namespace SESDAD
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
             if (replicaNum == 2)
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
-
-            //if leader is broker0 then replica becomes broker0-1 or broker0-2
-            parsedURLv2[1] = processname + "-" + replicaNum;
+            
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
