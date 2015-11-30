@@ -132,7 +132,7 @@ namespace SESDAD
             else { functions.Add(() => this.SendPublication(publication)); }
         }
 
-        public void MultipleSendPublication(string publication, int sleepInterval, int numberofevents)
+        public void MultipleSendPublication(string publication, int sleepInterval, int numberofevents, string topicName)
         {
             if (isFreeze == 0)
             {
@@ -142,13 +142,13 @@ namespace SESDAD
                     for (int i = 0; i < numberofevents; i++)
                     {
                         sequenceNumber += 1;
-                        if (myTopic != null)
+                        if (topicName != null)
                         {
                             PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                            PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+                            PM.UpdateEventLog("PubEvent", myURL, myURL, topicName);
                             try
                             {
-                                broker.ReceivePublication(publication + sequenceNumber, myURL, myTopic, myURL);
+                                broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL);
                             }
                             catch (System.Net.Sockets.SocketException)
                             {
