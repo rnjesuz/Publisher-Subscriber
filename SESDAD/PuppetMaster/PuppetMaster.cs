@@ -528,36 +528,27 @@ namespace SESDAD
             process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
 
             logEventMut.WaitOne();
-            if(PuppetMaster.Loglevel == 1)
-            {
-                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
-            }
+                if (PuppetMaster.Loglevel == 1)
+                {
+                    text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
+                }
 
-            if (PuppetMaster.Loglevel != 1 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
-                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
-            }
+                if (PuppetMaster.Loglevel != 1 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent")))
+                {
+                    text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
+                }
 
-            eventnumber++;
-            logEventMut.ReleaseMutex();
+                eventnumber++;
+                logEventMut.ReleaseMutex();
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
             //TODO change if statements - they're too expensive
             //TODO if file.create even needed?
             lock (logMonitor)
             {
-                if (!File.Exists(path))
-                {
-                    File.Create(path);
-                    TextWriter tw = new StreamWriter(path);
-                    tw.WriteLine(text);
-                    tw.Close();
-                }
-                else if (File.Exists(path))
-                {
-                    TextWriter tw = new StreamWriter(path, true);
-                    tw.WriteLine(text);
-                    tw.Close();
-                }
+                TextWriter tw = new StreamWriter(path, true);
+                tw.WriteLine(text);
+                tw.Close();
             }
         }
 
