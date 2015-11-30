@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting;
+using System.Threading;
 
 namespace SESDAD
 {
@@ -490,6 +491,7 @@ namespace SESDAD
         private Dictionary<string, string> subscriberTable = PuppetMaster.subscriberTable;
         //Monitor to make the access to the Log file thread safe.
         object logMonitor = new object();
+        private static Mutex logEventMut = new Mutex();
                
         /*
         write the received update into the Log file
@@ -525,14 +527,18 @@ namespace SESDAD
 
             process2Name = publisherTable.FirstOrDefault(x => x.Value.Contains(p2)).Key;
 
+            logEventMut.WaitOne();
             if(PuppetMaster.Loglevel == 1)
             {
-                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
+                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
             }
 
             if (PuppetMaster.Loglevel != 1 && (eventlabel.Equals("PubEvent") || eventlabel.Equals("SubEvent"))){
-                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber++;
+                text = eventlabel + " " + process1Name + ", " + process2Name + ", " + topicname + ", " + eventnumber;
             }
+
+            eventnumber++;
+            logEventMut.ReleaseMutex();
 
             string path = @"" + directory + "\\..\\..\\Log.txt";
             //TODO change if statements - they're too expensive
@@ -571,7 +577,7 @@ namespace SESDAD
         {
             PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pubURL);
             pub.ChangeTopic(topicname);
-            pub.MultipleSendPublication(topicname +": Publisher: " + processName + "; event ", sleepInterval, numberofevents);
+            pub.MultipleSendPublication(topicname +": Publisher: " + processName + "; event ", sleepInterval, numberofevents, topicname);
         }
 
         public void KillBroker(string URL)
