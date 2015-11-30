@@ -21,6 +21,8 @@ namespace SESDAD
         internal static string replicaURL;
         internal static TcpChannel channel;
 
+        internal static RemoteBroker rm = new RemoteBroker();
+
         //Dictionary of every publisher connected to this Broker and his topic 
         internal static Dictionary<string, string> publishers = new Dictionary<string, string>();
         //Dictionary of every subscriber connected to this Broker and his subscription
@@ -77,16 +79,16 @@ namespace SESDAD
             ChannelServices.RegisterChannel(channel, false);
 
             if(brokerType == 0)
-            {
-                //RemoteBroker rm = new RemoteBroker();
-                //RemotingServices.Marshal(rm, "broker", typeof(RemoteBroker));
-                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
+            {             
+                RemotingServices.Marshal(rm, "broker", typeof(RemoteBroker));
+                //RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
                 rb.ConnectFatherBroker(fatherURL);
             }
             else
             {
-                RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  "broker", WellKnownObjectMode.Singleton);
+                RemotingServices.Marshal(rm, "broker", typeof(RemoteBroker));
+                //RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  "broker", WellKnownObjectMode.Singleton);
                 Console.WriteLine(replicaURL);
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), replicaURL);
                 rb.StartPing();
@@ -293,10 +295,12 @@ namespace SESDAD
 
                     //now, propagate to replicas
                     string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                    Console.WriteLine("Transform: " + brkReplica1);
                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
                     bi.AddSubscriptionReplica(subURL, subscription);
                     string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
                     BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    Console.WriteLine("Transform: " + brkReplica2);
                     bi2.AddSubscriptionReplica(subURL, subscription);
                 }
                 else
