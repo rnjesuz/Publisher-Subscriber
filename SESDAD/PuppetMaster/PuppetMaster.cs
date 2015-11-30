@@ -150,6 +150,7 @@ namespace SESDAD
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", argsReplica2);
                                         Process.Start(startInfo);
+                                        Console.WriteLine("acabei as replicas do "+parsedLine[1]);
                                     }
                                     else
                                     {
@@ -453,6 +454,17 @@ namespace SESDAD
                     remotePM.Quit();
                     active = false;
                     //TODO go to every process and terminate them
+                    break;
+                case "Commands":
+                    Console.WriteLine("Please wait while we read commands from file");
+                    string commandPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"" + directory + "\\..\\..\\Commands.txt");
+                    string[] commands = System.IO.File.ReadAllLines(commandPath);
+                    string[] parsedCommands; //Line from config file that has the site information
+                    foreach (string command in commands)
+                    {
+                        parsedCommands = command.Split(null);
+                        ExecuteCommand(parsedCommands.ToList());
+                    }
                     break;
                 default:
                     Console.WriteLine("Invalid Input");
