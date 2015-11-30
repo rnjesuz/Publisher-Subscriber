@@ -23,21 +23,6 @@ namespace SESDAD
 
         internal static RemoteBroker rm = new RemoteBroker();
 
-        //Dictionary of every publisher connected to this Broker and his topic 
-        internal static Dictionary<string, string> publishers = new Dictionary<string, string>();
-        //Dictionary of every subscriber connected to this Broker and his subscription
-        internal static Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
-        //Father node in the Broker Tree. CAN be NULL. root of the tree
-        //BrokerInterface fatherBroker;
-        //Child node in the Broker Tree. CAN be NULL. last leaf
-        //List<BrokerInterface> childBroker = new List<BrokerInterface>();
-        internal static string fatherBroker;
-        internal static List<string> childBroker = new List<string>();
-        //List of father's interested subscription. NULL unless routing is mode filtering
-        internal static List<string> fatherSubscriptions = new List<string>();
-        //Dictionary between each child and they're interested subscriptions. NULL unless routing is mode filtering
-        internal static Dictionary<string, List<string>> childsSubscriptions = new Dictionary<string, List<string>>();
-
         static void Main(string[] args)
         {
             //TODO remove when PuppetMaster is implemented
@@ -47,12 +32,12 @@ namespace SESDAD
             if (args.Length == 5)
             {
                 brokerType = Int32.Parse(args[4]);
-                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]), Int32.Parse(args[4]) );
+                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]), Int32.Parse(args[4]));
             }
             else
             {
                 brokerType = Int32.Parse(args[3]);
-                new Broker(args[0], args[1], Int32.Parse(args[2]), Int32.Parse(args[3]) );
+                new Broker(args[0], args[1], Int32.Parse(args[2]), Int32.Parse(args[3]));
             }
 
             BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
@@ -63,7 +48,7 @@ namespace SESDAD
                 int newPort = myPort + 1337;
                 props["port"] = newPort;
             }
-            else if(brokerType == 2)
+            else if (brokerType == 2)
             {
                 int newPort = myPort + 1338;
                 props["port"] = newPort;
@@ -78,8 +63,8 @@ namespace SESDAD
             //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
 
-            if(brokerType == 0)
-            {             
+            if (brokerType == 0)
+            {
                 RemotingServices.Marshal(rm, "broker", typeof(RemoteBroker));
                 //RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), myURL);
@@ -93,7 +78,7 @@ namespace SESDAD
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), replicaURL);
                 rb.StartPing();
             }
-                    
+
             //solely to prevent console from closing
             while (true) { }
         }
@@ -107,7 +92,7 @@ namespace SESDAD
             myPort = parseURL(url);
             isFiltering = filtering;
             brokerType = _brokerType;
-            if(brokerType != 0)
+            if (brokerType != 0)
             {
                 replicaURL = transformURL(url);
             }
@@ -145,11 +130,11 @@ namespace SESDAD
             string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
 
             //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
-            if(brokerType == 1)
+            if (brokerType == 1)
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
-            if(brokerType == 2)
+            if (brokerType == 2)
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
-            
+
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
@@ -165,7 +150,7 @@ namespace SESDAD
 
     class RemoteBroker : MarshalByRefObject, BrokerInterface
     {
-        
+
         //Url broker
         //private string myURL = Broker.myURL;
         // 0 did NOT porpagate yet; 1 already porpagate
@@ -180,6 +165,27 @@ namespace SESDAD
         //private int brokerType = Broker.brokerType;
         //Monitor for replicas when attempnting to takeover leader
         //object replicaMonitor = new object();
+
+        //Dictionary of every publisher connected to this Broker and his topic 
+        Dictionary<string, string> publishers = new Dictionary<string, string>();
+        //Dictionary of every subscriber connected to this Broker and his subscription
+        Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
+        //Father node in the Broker Tree. CAN be NULL. root of the tree
+        //BrokerInterface fatherBroker;
+        //Child node in the Broker Tree. CAN be NULL. last leaf
+        //List<BrokerInterface> childBroker = new List<BrokerInterface>();
+        string fatherBroker;
+        List<string> childBroker = new List<string>();
+        //List of father's interested subscription. NULL unless routing is mode filtering
+        List<string> fatherSubscriptions = new List<string>();
+        //Dictionary between each child and they're interested subscriptions. NULL unless routing is mode filtering
+        Dictionary<string, List<string>> childsSubscriptions = new Dictionary<string, List<string>>();
+
+        //Booleans that represent the state of the replicas. when one overtakes the leader bool is updated
+        bool aliveReplica1 = true;
+        bool aliveReplica2 = true;
+
+
 
         //constructor for remoteobject iniatialization
         public RemoteBroker()
@@ -209,35 +215,71 @@ namespace SESDAD
                 catch (Exception)
                 {
                     Console.WriteLine("Main broker died, attempting to take over...");
-                    try {
+                    try
+                    {
+
+                        char replicanmbr = Broker.processname[Broker.processname.Length - 1];
                         // lock (replicaMonitor)
                         //{
                         Console.WriteLine("Unregestering");
-                            ChannelServices.UnregisterChannel(Broker.channel);
+                        ChannelServices.UnregisterChannel(Broker.channel);
                         Console.WriteLine("Doing channel properties");
-                            BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
-                            provider.TypeFilterLevel = TypeFilterLevel.Full;
-                            IDictionary props = new Hashtable();
-                            props["port"] = Broker.myPort;
-                            TcpChannel newchannel = new TcpChannel(props, null, provider);
+                        BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+                        provider.TypeFilterLevel = TypeFilterLevel.Full;
+                        IDictionary props = new Hashtable();
+                        props["port"] = Broker.myPort;
+                        TcpChannel newchannel = new TcpChannel(props, null, provider);
                         Console.WriteLine("Registeting");
-                            ChannelServices.RegisterChannel(newchannel, false);
+                        ChannelServices.RegisterChannel(newchannel, false);
 
-                            BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.myURL);
-                            rb.ConnectFatherBroker(Broker.fatherURL);
-                            Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
-                            return;
-                      //  }
+                        BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.myURL);
+                        rb.ConnectFatherBroker(Broker.fatherURL);
+                        Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
+
+                        //now we change the bool related to the replica that took over
+                        //the replica that took over is no longer available on the old channel so leader shouldnt try to reach it
+                        if (replicanmbr.Equals("1"))
+                        {
+                            aliveReplica1 = false;
+                            string brkReplica = transformURL(Broker.processname, Broker.myURL, 2);
+                            //see if other replica is alive before starting conversaiton
+                            if (aliveReplica2)
+                            {
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
+                                //Notify other replica that im now the leader and former channel no longer exists
+                                bi.ActualizeLeader(replicanmbr);
+                            }
+
+                        }
+                        if (replicanmbr.Equals("2"))
+                        {
+                            aliveReplica2 = false;
+                            //get other replica URL
+                            string brkReplica = transformURL(Broker.processname, Broker.myURL, 1);
+                            //see if other replica is alive before starting conversaiton
+                            if (aliveReplica1)
+                            {
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
+                                //Notify other replica that im now the leader and former channel no longer exists
+                                bi.ActualizeLeader(replicanmbr);
+                            }
+
+                        }
+                        return;
+                        //  }
                     }
                     //TODO catch right exception
                     //duplicateservice?
-                    catch (Exception) {
+                    catch (Exception)
+                    {
                         Console.WriteLine("Take over failed, returning to passive mode");
                         ChannelServices.RegisterChannel(Broker.channel, false);
                     }
                 }
             }
-           
+
         }
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
@@ -246,30 +288,38 @@ namespace SESDAD
             {
                 //add subscriber to the Dictionary.
                 List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
-                Broker.subscribers.Add(subURL, auxlist);
+                subscribers.Add(subURL, auxlist);
                 System.Console.WriteLine("Subscriber at: " + subURL + " connected");
                 //now, propagate to replicas
                 string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
-                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
-                bi.ConnectSubscriberReplica(subURL);
+                if (aliveReplica1)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.ConnectSubscriberReplica(subURL);
+                }
                 string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
-                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
-                bi2.ConnectSubscriberReplica(subURL);
+                if (aliveReplica2)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.ConnectSubscriberReplica(subURL);
+                }
             }
             else { functions.Add(() => this.ConnectSubscriber(subURL)); }
         }
-        
+
         public void AddSubscription(string subURL, string subscription)
         {
             /*Verify if subURL is on the List*/
             if (isFreeze == 0)
             {
-                if (Broker.subscribers.ContainsKey(subURL))
+                if (subscribers.ContainsKey(subURL))
                 {
                     /*Verify if already subscribed to topic*/
-                    if (!Broker.subscribers[subURL].Contains(subscription))
+                    if (!subscribers[subURL].Contains(subscription))
                     {
-                        Broker.subscribers[subURL].Add(subscription);
+                        subscribers[subURL].Add(subscription);
                         System.Console.WriteLine(subURL + " subscribed to: " + subscription);
                     }
                     else
@@ -280,13 +330,13 @@ namespace SESDAD
                     //sends subscription to father and child if flag is active
                     if (Broker.isFiltering == 1)
                     {
-                        if (Broker.fatherBroker != null)
+                        if (fatherBroker != null)
                         {
-                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                             fatherBI.NewSubscriptionForFather(Broker.myURL, subscription);
                         }
 
-                        foreach (string child in Broker.childBroker)
+                        foreach (string child in childBroker)
                         {
                             BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                             childBI.NewSubscriptionForChild(subscription);
@@ -295,13 +345,19 @@ namespace SESDAD
 
                     //now, propagate to replicas
                     string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
-                    Console.WriteLine("Transform: " + brkReplica1);
-                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
-                    bi.AddSubscriptionReplica(subURL, subscription);
+                    if (aliveReplica1)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                        bi.AddSubscriptionReplica(subURL, subscription);
+                    }
                     string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
-                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
-                    Console.WriteLine("Transform: " + brkReplica2);
-                    bi2.AddSubscriptionReplica(subURL, subscription);
+                    if (aliveReplica2)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                        bi2.AddSubscriptionReplica(subURL, subscription);
+                    }
                 }
                 else
                 {
@@ -319,13 +375,13 @@ namespace SESDAD
             {
                 Console.WriteLine("[RemoveSubscription]");
                 //Verify if subURL is on the List
-                if (Broker.subscribers.ContainsKey(subURL))
+                if (subscribers.ContainsKey(subURL))
                 {
                     //Verify subscriber is subscribed to topic
-                    if (Broker.subscribers[subURL].Contains(topic))
+                    if (subscribers[subURL].Contains(topic))
                     {
                         //Normal remove of topic
-                        Broker.subscribers[subURL].Remove(topic);
+                        subscribers[subURL].Remove(topic);
                         Console.WriteLine(topic + " removed from " + subURL);
                     }
                     else
@@ -336,12 +392,12 @@ namespace SESDAD
 
                     if (Broker.isFiltering == 1)
                     {
-                        if (Broker.fatherBroker != null)
+                        if (fatherBroker != null)
                         {
-                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                             fatherBI.RemoveSubscriptionForFather(Broker.myURL, topic);
                         }
-                        foreach (string child in Broker.childBroker)
+                        foreach (string child in childBroker)
                         {
                             BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                             childBI.RemoveSubscriptionForChild(topic);
@@ -350,11 +406,19 @@ namespace SESDAD
 
                     //now, propagate to replicas
                     string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
-                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
-                    bi.RemoveSubscriptionReplica(subURL, topic);
+                    if (aliveReplica1)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                        bi.RemoveSubscriptionReplica(subURL, topic);
+                    }
                     string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
-                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
-                    bi2.RemoveSubscriptionReplica(subURL, topic);
+                    if (aliveReplica2)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                        bi2.RemoveSubscriptionReplica(subURL, topic);
+                    }
 
                 }
                 else
@@ -372,15 +436,23 @@ namespace SESDAD
             if (isFreeze == 0)
             {
                 //add publisher to the Dictionary.
-                Broker.publishers.Add(pubURL, "root");
+                publishers.Add(pubURL, "root");
                 Console.WriteLine("Publisher at: " + pubURL + " connected");
                 //now, propagate to replicas
                 string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
-                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
-                bi.ConnectPublisherReplica(pubURL);
+                if (aliveReplica1)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.ConnectPublisherReplica(pubURL);
+                }
                 string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
-                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
-                bi2.ConnectPublisherReplica(pubURL);
+                if (aliveReplica2)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.ConnectPublisherReplica(pubURL);
+                }
             }
             else { functions.Add(() => this.ConnectPublisher(pubURL)); }
         }
@@ -390,9 +462,9 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                if (Broker.publishers.ContainsKey(pubURL))
+                if (publishers.ContainsKey(pubURL))
                 {
-                    Broker.publishers[pubURL] = topic;
+                    publishers[pubURL] = topic;
                     Console.WriteLine(pubURL + " publishing to: " + topic);
                 }
                 else
@@ -403,11 +475,19 @@ namespace SESDAD
 
                 //now, propagate to replicas
                 string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
-                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
-                bi.ChangePublishingTopicReplica(pubURL, topic);
+                if (aliveReplica1)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.ChangePublishingTopicReplica(pubURL, topic);
+                }
                 string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
-                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
-                bi2.ChangePublishingTopicReplica(pubURL, topic);
+                if (aliveReplica2)
+                {
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.ChangePublishingTopicReplica(pubURL, topic);
+                }
             }
             else { functions.Add(() => this.ChangePublishTopic(pubURL, topic)); }
         }
@@ -417,7 +497,7 @@ namespace SESDAD
         {
             if (url != null)
             {
-                Broker.fatherBroker = url;
+                fatherBroker = url;
                 BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBI.AddChild(Broker.myURL);
                 Console.WriteLine("Added father");
@@ -429,16 +509,16 @@ namespace SESDAD
         {
             //adds child to list of childs
             //????????BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
-            if (!(Broker.childBroker.Contains(url)) && Broker.childBroker != null)
+            if (!(childBroker.Contains(url)) && childBroker != null)
             {
                 //?????????childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
-                Broker.childBroker.Add(url);
+                childBroker.Add(url);
                 Console.WriteLine("Added child");
             }
             //creates and entrance in the hashmap for this child and its future subscriptions.
-            if (!(Broker.childsSubscriptions.ContainsKey(url)))
+            if (!(childsSubscriptions.ContainsKey(url)))
             {
-                Broker.childsSubscriptions.Add(url, new List<string>());
+                childsSubscriptions.Add(url, new List<string>());
             }
         }
 
@@ -481,17 +561,17 @@ namespace SESDAD
                 if (Broker.isFiltering == 0)
                 {
                     //check if Broker is tree root
-                    if ((Broker.fatherBroker != null) && (!Broker.fatherBroker.Equals(propagatorURL)))
+                    if ((fatherBroker != null) && (!fatherBroker.Equals(propagatorURL)))
                     {
                         Console.WriteLine("Propagating to father");
-                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                         fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL);
                         Console.WriteLine("Propagated");
                     }
 
-                    if (Broker.childBroker != null)
+                    if (childBroker != null)
                     {
-                        foreach (string child in Broker.childBroker)
+                        foreach (string child in childBroker)
                         {
                             if (!child.Equals(propagatorURL))
                             {
@@ -507,15 +587,15 @@ namespace SESDAD
                 {
                     //mode filtering 
                     //check if father is interested
-                    foreach (string subscription in Broker.fatherSubscriptions)
+                    foreach (string subscription in fatherSubscriptions)
                     {
-                        if (!Broker.fatherBroker.Equals(propagatorURL))
+                        if (!fatherBroker.Equals(propagatorURL))
                         {
                             Console.WriteLine("sub: " + subscription);
                             if (subscription.Equals(topic))
                             {
                                 Console.WriteLine("Propagating to father");
-                                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                                 fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL);
                                 Console.WriteLine("Propagated");
                             }
@@ -523,11 +603,11 @@ namespace SESDAD
                     }
 
                     //check if any child is intereted
-                    foreach (string child in Broker.childsSubscriptions.Keys)
+                    foreach (string child in childsSubscriptions.Keys)
                     {
                         if (child != propagatorURL)
                         {
-                            foreach (string subscription in Broker.childsSubscriptions[child])
+                            foreach (string subscription in childsSubscriptions[child])
                             {
                                 if (subscription.Equals(topic))
                                 {
@@ -539,7 +619,7 @@ namespace SESDAD
                             }
                         }
                     }
-                }               
+                }
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
             }
@@ -555,9 +635,9 @@ namespace SESDAD
                 Console.WriteLine("[SenPublication]");
                 Console.WriteLine("Sending publication to Subscribers");
                 //See if any subscriber is interested in this publication
-                foreach (String subscriber in Broker.subscribers.Keys)
+                foreach (String subscriber in subscribers.Keys)
                 {
-                    foreach (String topic in Broker.subscribers[subscriber])
+                    foreach (String topic in subscribers[subscriber])
                     {
                         if (publicationTopic.Contains(topic))
                         {
@@ -608,23 +688,23 @@ namespace SESDAD
                 Console.WriteLine("I'm alive at: " + Broker.myURL);
                 Console.WriteLine("Presumed alive subscribers are: ");
 
-                foreach (string sub in Broker.subscribers.Keys)
+                foreach (string sub in subscribers.Keys)
                 {
                     Console.WriteLine(sub);
                 }
                 //call for status report of the subs
-                foreach (string sub in Broker.subscribers.Keys)
+                foreach (string sub in subscribers.Keys)
                 {
                     SubscriberInterface Subscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), sub);
                     Subscriber.StatusUpdate();
                 }
                 Console.WriteLine("Presumed alive publishers are: ");
-                foreach (string pub in Broker.publishers.Keys)
+                foreach (string pub in publishers.Keys)
                 {
                     Console.WriteLine(pub);
                 }
                 //call for status report of the pubs
-                foreach (string pub in Broker.publishers.Keys)
+                foreach (string pub in publishers.Keys)
                 {
                     PublisherInterface Publisher = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pub);
                     Publisher.StatusUpdate();
@@ -632,10 +712,10 @@ namespace SESDAD
 
                 //call for status report on child nodes
                 //call starts on the root of the Broker-Tree and propagates downwards
-                if (Broker.childBroker != null)
+                if (childBroker != null)
                 {
-                    Console.WriteLine("I have " + Broker.childBroker.Count + " child Nodes");
-                    foreach (string child in Broker.childBroker)
+                    Console.WriteLine("I have " + childBroker.Count + " child Nodes");
+                    foreach (string child in childBroker)
                     {
                         BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                         childBI.StatusUpdate();
@@ -650,17 +730,17 @@ namespace SESDAD
         public void NewSubscriptionForFather(string childURL, string subscription)
         {
             Console.WriteLine("One of my childs has a new subscription");
-            Broker.childsSubscriptions[childURL].Add(subscription);
+            childsSubscriptions[childURL].Add(subscription);
 
             //test is there's a father to send to
-            if (Broker.fatherBroker != null)
+            if (fatherBroker != null)
             {
-                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                 fatherBI.NewSubscriptionForFather(Broker.myURL, subscription);
             }
 
             //check if i have more than 1 child. if i do i propagate to them i have a new subsciption
-            foreach (string child in Broker.childBroker)
+            foreach (string child in childBroker)
             {
                 if (!child.Equals(childURL))
                 {
@@ -673,11 +753,11 @@ namespace SESDAD
         public void NewSubscriptionForChild(string subscription)
         {
             Console.WriteLine("My father has a new subscription");
-            Broker.fatherSubscriptions.Add(subscription);
+            fatherSubscriptions.Add(subscription);
 
             //send interests to my own childs.
             //no need to test for null the foreach doe sit for us
-            foreach (string child in Broker.childBroker)
+            foreach (string child in childBroker)
             {
                 BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                 childBI.NewSubscriptionForChild(subscription);
@@ -687,17 +767,17 @@ namespace SESDAD
         public void RemoveSubscriptionForFather(string childURL, string topic)
         {
             Console.WriteLine("One of my childs removed a subscription");
-            Broker.childsSubscriptions[childURL].Remove(topic);
+            childsSubscriptions[childURL].Remove(topic);
 
             //test if there's a father to send to
-            if (Broker.fatherBroker != null)
+            if (fatherBroker != null)
             {
-                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.fatherBroker);
+                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                 fatherBI.RemoveSubscriptionForFather(Broker.myURL, topic);
             }
 
             //check if i have more than 1 child. if i do i propagate to them i no longer have insterest in this subscription
-            foreach (string child in Broker.childBroker)
+            foreach (string child in childBroker)
             {
                 if (!child.Equals(childURL))
                 {
@@ -710,11 +790,11 @@ namespace SESDAD
         public void RemoveSubscriptionForChild(string topic)
         {
             Console.WriteLine("My father removed a subscription");
-            Broker.fatherSubscriptions.Remove(topic);
+            fatherSubscriptions.Remove(topic);
 
             //remove interests from child
             //no need to test for null the foreach does it for us
-            foreach (string child in Broker.childBroker)
+            foreach (string child in childBroker)
             {
                 BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                 childBI.RemoveSubscriptionForChild(topic);
@@ -723,7 +803,7 @@ namespace SESDAD
 
         public void ReceivePing()
         {
-            
+
         }
 
 
@@ -745,7 +825,7 @@ namespace SESDAD
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
             if (replicaNum == 2)
                 parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
-            
+
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
@@ -759,7 +839,7 @@ namespace SESDAD
         {
             //add subscriber to the Dictionary.
             List<string> auxlist = new List<string>(); /*auxlist to init list of subscriptions*/
-            Broker.subscribers.Add(subURL, auxlist);
+            subscribers.Add(subURL, auxlist);
             System.Console.WriteLine("Replica:Subscriber at: " + subURL + " connected");
         }
 
@@ -768,8 +848,8 @@ namespace SESDAD
         public void ConnectPublisherReplica(string pubURL)
         {
             //add publisher to the Dictionary.
-            Broker.publishers.Add(pubURL, "root");
-                Console.WriteLine("Replica:Publisher at: " + pubURL + " connected");
+            publishers.Add(pubURL, "root");
+            Console.WriteLine("Replica:Publisher at: " + pubURL + " connected");
         }
 
         //method to propagate subscriptions from leader to replicas
@@ -777,17 +857,17 @@ namespace SESDAD
         public void AddSubscriptionReplica(string subURL, string subscription)
         {
             /*Verify if subURL is on the List*/
-            if (Broker.subscribers.ContainsKey(subURL))
+            if (subscribers.ContainsKey(subURL))
             {
                 /*Verify if already subscribed to topic*/
-                if (!Broker.subscribers[subURL].Contains(subscription))
+                if (!subscribers[subURL].Contains(subscription))
                 {
-                    Broker.subscribers[subURL].Add(subscription);
-                    System.Console.WriteLine("Replica:"+ subURL + " subscribed to: " + subscription);
+                    subscribers[subURL].Add(subscription);
+                    System.Console.WriteLine("Replica:" + subURL + " subscribed to: " + subscription);
                 }
                 else
                 {
-                    System.Console.WriteLine("Replica:"+ subURL + " already subscribed to " + subscription);
+                    System.Console.WriteLine("Replica:" + subURL + " already subscribed to " + subscription);
                 }
             }
             else
@@ -802,45 +882,56 @@ namespace SESDAD
         //the replica then removes the subscription from it's List
         public void RemoveSubscriptionReplica(string subURL, string topic)
         {
-                Console.WriteLine("[Replica:RemoveSubscription]");
-                //Verify if subURL is on the List
-                if (Broker.subscribers.ContainsKey(subURL))
+            Console.WriteLine("[Replica:RemoveSubscription]");
+            //Verify if subURL is on the List
+            if (subscribers.ContainsKey(subURL))
+            {
+                //Verify subscriber is subscribed to topic
+                if (subscribers[subURL].Contains(topic))
                 {
-                    //Verify subscriber is subscribed to topic
-                    if (Broker.subscribers[subURL].Contains(topic))
-                    {
                     //Normal remove of topic
-                    Broker.subscribers[subURL].Remove(topic);
-                        Console.WriteLine("Replica:"+ topic + " removed from " + subURL);
-                    }
-                    else
-                    {
-                        //TODO throw an exception to the subscriber
-                        Console.WriteLine("Replica:There is no such topic");
-                    }
+                    subscribers[subURL].Remove(topic);
+                    Console.WriteLine("Replica:" + topic + " removed from " + subURL);
                 }
                 else
                 {
                     //TODO throw an exception to the subscriber
-                    Console.WriteLine("Replica:There is no such Subscriber connected to this Broker");
+                    Console.WriteLine("Replica:There is no such topic");
                 }
-                Console.WriteLine("-------------------------------");
+            }
+            else
+            {
+                //TODO throw an exception to the subscriber
+                Console.WriteLine("Replica:There is no such Subscriber connected to this Broker");
+            }
+            Console.WriteLine("-------------------------------");
         }
 
         //method to propagate publisher topic from leader to replicas
         //the replica then associates the topic to the publisher in it's List
         public void ChangePublishingTopicReplica(string pubURL, string topic)
         {
-            if (Broker.publishers.ContainsKey(pubURL))
+            if (publishers.ContainsKey(pubURL))
             {
-                Broker.publishers[pubURL] = topic;
-                Console.WriteLine("Replica:"+ pubURL + " publishing to: " + topic);
+                publishers[pubURL] = topic;
+                Console.WriteLine("Replica:" + pubURL + " publishing to: " + topic);
             }
             else
             {
                 //TODO trow and exception to the publisher
                 Console.WriteLine("Replica:There is no such Publisher connected to this Broker");
             }
+        }
+
+        //method used to actualize booleans
+        //each booleans is the state of a replica.
+        //when one takes over its according boolean goes from true to false
+        public void ActualizeLeader(int replicaNumber)
+        {
+            if (replicaNumber == 1)
+                aliveReplica1 = false;
+            if (replicaNumber == 2)
+                aliveReplica2 = false;
         }
     }
 }
