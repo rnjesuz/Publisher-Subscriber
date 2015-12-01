@@ -129,9 +129,9 @@ namespace SESDAD
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
                                         //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
-                                        string[] args = new string[4] { parsedLine[1], parsedLine[7], eventRouting.ToString(), "0" };
-                                        string[] argsReplica1 = new string[4] { parsedLine[1] + "-1", parsedLine[7], eventRouting.ToString(), "1" };
-                                        string[] argsReplica2 = new string[4] { parsedLine[1] + "-2", parsedLine[7], eventRouting.ToString(), "2" };
+                                        string[] args = new string[5] { parsedLine[1], parsedLine[7], eventRouting.ToString(), "0", Ordering.ToString() };
+                                        string[] argsReplica1 = new string[5] { parsedLine[1] + "-1", parsedLine[7], eventRouting.ToString(), "1", Ordering.ToString() };
+                                        string[] argsReplica2 = new string[5] { parsedLine[1] + "-2", parsedLine[7], eventRouting.ToString(), "2", Ordering.ToString() };
 
 
                                         //create leader
@@ -157,9 +157,9 @@ namespace SESDAD
                                     {
                                         // new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
                                         //last argument: 0/1 indicates type of broker instance. 0 for leader, 1 for replic 
-                                        string[] args = new string[5] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "0" };
-                                        string[] argsReplica1 = new string[5] { parsedLine[1]+"-1", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "1" };
-                                        string[] argsReplica2 = new string[5] { parsedLine[1]+"-2", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "2" };
+                                        string[] args = new string[6] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "0", Ordering.ToString() };
+                                        string[] argsReplica1 = new string[6] { parsedLine[1]+"-1", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "1", Ordering.ToString() };
+                                        string[] argsReplica2 = new string[6] { parsedLine[1]+"-2", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "2", Ordering.ToString() };
 
 
                                         //create leader

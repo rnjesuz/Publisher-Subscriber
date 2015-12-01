@@ -37,14 +37,14 @@ namespace SESDAD
 
             //TODO remove after PuppetMaster is implemented
             //brokerURL = "tcp://localhost:8086/broker";
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher),"pub",WellKnownObjectMode.Singleton);
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher), "pub", WellKnownObjectMode.Singleton);
 
             publisher.ConnectToBroker();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new PublisherForm());
-            
+
         }
 
         public Publisher(string name, string pubURL, string brkURL)
@@ -84,6 +84,10 @@ namespace SESDAD
         private BrokerInterface broker = Publisher.broker;
         private string myURL = Publisher.myURL;
         string myTopic;
+        //controls number of publications done by this publisher
+        int publications = 0;
+        //mutex to control acces to publications variable
+        private static Mutex publicationsMut = new Mutex();
 
         //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
@@ -96,7 +100,8 @@ namespace SESDAD
             if (isFreeze == 0)
             {
                 myTopic = Topic;
-                try {
+                try
+                {
                     broker.ChangePublishTopic(myURL, Topic);
                 }
                 catch (System.Net.Sockets.SocketException)
@@ -124,8 +129,12 @@ namespace SESDAD
                 {
                     PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
                     PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
-                    try {
-                        broker.ReceivePublication(publication, myURL, myTopic, myURL);
+                    try
+                    {
+                        publicationsMut.WaitOne();
+                        broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
+                        publications++;
+                        publicationsMut.ReleaseMutex();
                     }
                     catch (System.Net.Sockets.SocketException)
                     {
@@ -133,7 +142,10 @@ namespace SESDAD
                         System.Threading.Thread.Sleep(5000);
                         try
                         {
-                            broker.ReceivePublication(publication, myURL, myTopic, myURL);
+                            publicationsMut.WaitOne();
+                            broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
+                            publications++;
+                            publicationsMut.ReleaseMutex();
                         }
                         catch (System.Net.Sockets.SocketException)
                         {
@@ -167,7 +179,10 @@ namespace SESDAD
                             PM.UpdateEventLog("PubEvent", myURL, myURL, topicName);
                             try
                             {
-                                broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL);
+                                publicationsMut.WaitOne();
+                                broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL, publications);
+                                publications++;
+                                publicationsMut.ReleaseMutex();
                             }
                             catch (System.Net.Sockets.SocketException)
                             {
@@ -175,20 +190,21 @@ namespace SESDAD
                                 System.Threading.Thread.Sleep(5000);
                                 try
                                 {
-                                    broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL);
+                                    publicationsMut.WaitOne();
+                                    broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL, publications);
+                                    publications++;
+                                    publicationsMut.ReleaseMutex();
                                 }
                                 catch (System.Net.Sockets.SocketException)
                                 {
                                     Console.WriteLine("can't connect to broker");
                                 }
                             }
-
                         }
                         System.Threading.Thread.Sleep(sleepInterval);
-                        // SendPublication(publication + sequenceNumber);
                     }
                 }).Start();
-        }
+            }
             else { functions.Add(() => this.SendPublication(publication)); }
         }
 

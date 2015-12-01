@@ -6,6 +6,7 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
+using System.Threading;
 
 namespace SESDAD
 {
@@ -15,8 +16,10 @@ namespace SESDAD
         internal static string myURL = null;
         internal static string fatherURL = null;
         internal static string processname;
-        //boll to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
+        //bool to tell if systme is in mode filtering(1) or flooding(0). Used by remoteBroker
         internal static int isFiltering = 0;
+        //bool to tell what mode of ordering is the system in. -1 is for No order. 0 is for FIFO order, 1 is for TOTAL order
+        internal static int order = 0;
         internal static int brokerType = 0;
         internal static string replicaURL;
         internal static TcpChannel channel;
@@ -29,15 +32,15 @@ namespace SESDAD
             // myPort = 8086;
             //TODO remove after PuppetMaster is implemented
             //myURL = "tcp://localhost:"+myPort+"/broker";
-            if (args.Length == 5)
+            if (args.Length == 6)
             {
                 brokerType = Int32.Parse(args[4]);
-                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]), Int32.Parse(args[4]));
+                new Broker(args[0], args[1], args[2], Int32.Parse(args[3]), Int32.Parse(args[4]), Int32.Parse(args[5]));
             }
             else
             {
                 brokerType = Int32.Parse(args[3]);
-                new Broker(args[0], args[1], Int32.Parse(args[2]), Int32.Parse(args[3]));
+                new Broker(args[0], args[1], Int32.Parse(args[2]), Int32.Parse(args[3]), Int32.Parse(args[4]));
             }
 
             BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
@@ -74,7 +77,6 @@ namespace SESDAD
             {
                 RemotingServices.Marshal(rm, "broker", typeof(RemoteBroker));
                 //RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker),  "broker", WellKnownObjectMode.Singleton);
-                Console.WriteLine(replicaURL);
                 BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), replicaURL);
                 rb.StartPing();
             }
@@ -84,7 +86,7 @@ namespace SESDAD
         }
 
         //constructor for the root broker ( no father)
-        public Broker(string name, string url, string fUrl, int filtering, int _brokerType)
+        public Broker(string name, string url, string fUrl, int filtering, int _brokerType, int _order)
         {
             processname = name;
             myURL = url;
@@ -96,11 +98,12 @@ namespace SESDAD
             {
                 replicaURL = transformURL(url);
             }
+            order = _order;
             Console.WriteLine("processname: " + processname);
         }
 
         //constructor for leafe broker (has a father)
-        public Broker(string name, string url, int filtering, int _brokerType)
+        public Broker(string name, string url, int filtering, int _brokerType, int _order)
         {
             processname = name;
             myURL = url;
@@ -111,6 +114,7 @@ namespace SESDAD
             {
                 replicaURL = transformURL(url);
             }
+            order = _order;
             Console.WriteLine("processname: " + processname);
         }
 
@@ -139,7 +143,6 @@ namespace SESDAD
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
             string newURL = string.Join(":", parsedURL);
-            Console.WriteLine(newURL);
             return newURL;
         }
         public void ConnectReplica()
@@ -157,10 +160,19 @@ namespace SESDAD
         //private int propagate = 0;
         //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
+        private int order = Broker.order;
         //boll to tell if systme is in mode filtering(1) or flooding(0) 
         //private int isFiltering = Broker.isFiltering;
         //List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
+        //list of publications ahead of time. the pairing is from publicationnbmr to the action it will execute when the time comes 
+        private Dictionary<int, Action> waitingPublications = new Dictionary<int, Action>();
+        //mutex to control access to list of last publications
+        private Mutex lastPubMut = new Mutex();
+        //boolean to test if there were changes to the waitingpublications list
+        bool waitingListChange = false;
+        //Dictionary associating a Publisher to the last received publication( last received is indicated by a integer)
+        Dictionary<string, int> lastPublication = new Dictionary<string, int>();
         //am i the leader or a replication? (0 for lider, 1 for replication)
         //private int brokerType = Broker.brokerType;
         //Monitor for replicas when attempnting to takeover leader
@@ -256,6 +268,8 @@ namespace SESDAD
             {
                 Console.WriteLine("Channel in use");
                 Console.WriteLine("Take over failed, returning to passive mode");
+                //sleep to make sure channel is unregistered before registering again
+                System.Threading.Thread.Sleep(5000);
                 ChannelServices.RegisterChannel(Broker.channel, false);
                 return -1;
             }
@@ -535,38 +549,142 @@ namespace SESDAD
                 childsSubscriptions.Add(url, new List<string>());
             }
         }
+        //method to test if a waiting publication is the next one in line.
+        //if it's time for it to be exectued do so,
+        //if not keep it in the list
+        private void TestPublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr){
+            //is my number the next one in line?
+            lastPubMut.WaitOne();
+            if (publicationNmbr <= lastPublication[pubURL] + 1)
+            {
+                Console.WriteLine("Testing");
+                //signal there was a modification on the waiting list
+                waitingListChange = true;
+                //remove myself from the waiting list
+                waitingPublications.Remove(publicationNmbr);
+                lastPubMut.ReleaseMutex();
+                //call receiveiPublication
+                Console.WriteLine("Publication has reached it's turn");
+                ReceivePublication(publication, pubURL, topic, propagatorURL, publicationNmbr);
+            }
+            else
+                waitingListChange = false;
+        }
 
         //method called by a publisher to publish a publication
         //or
         //method called by a child broker to propagate a publication
-        public void ReceivePublication(string publication, string pubURL, string topic, string propagatorURL)
+        public void ReceivePublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr)
         {
             if (isFreeze == 0)
             {
+                //total order
+                if (order == 1) {
+                }
+                //fifo order
+                if (order == 0)
+                {
+                    //have i received any publication from this publisher?
+                    lastPubMut.WaitOne();
+                    if (lastPublication.ContainsKey(pubURL)) {
+                        //see if publication is the next one in line ( or a previous one delayed by network)
+                        if(publicationNmbr <= lastPublication[pubURL] + 1)
+                        {
+                            //do regular publication reception
+                            Console.WriteLine("[ReceivePublication]");
+                            //added new publisher and its corresponding publicationnmbr to the dictionary
+                            Console.WriteLine("Received publication "+publicationNmbr+" from "+pubURL);
+                            lastPublication[pubURL] = publicationNmbr;
+                            lastPubMut.ReleaseMutex();
+                            //perform regular propagation
+                            Console.WriteLine("Started call for Log Update");
+                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                            PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
+                            Console.WriteLine("Ended call for Log Update");
 
-                Console.WriteLine("Started call for Log Update");
-                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
-                Console.WriteLine("Ended call for Log Update");
+                            Console.WriteLine("Propagating...");
+                            PropagatePublication(publication, pubURL, topic, propagatorURL, publicationNmbr);
 
-                Console.WriteLine("[ReceivePublication]");
-                //if (propagate == 0)
-                //{
-                //propagate = 1;
-                PropagatePublication(publication, pubURL, topic, propagatorURL);
-                //}
+                            Console.WriteLine("Sending Publication");
+                            SendPublication(publication, pubURL, topic);
 
-                Console.WriteLine("Calling SendPublication");
-                SendPublication(publication, pubURL, topic);
-                Console.WriteLine("[End of ReceivePublication]");
-                Console.WriteLine("-------------------------------");
+                            Console.WriteLine("[End of ReceivePublication]");
+                            Console.WriteLine("-------------------------------");
+                            //Test all remaining publications that could be waiting for this one
+                            //if theres was a publication waiting that got executed, keep testing the list until no more publications can be executed      
+                            do
+                            {
+                                foreach (var function in waitingPublications.Values)
+                                {
+                                    Console.WriteLine("invoking a waiting publication");
+                                    function.Invoke();
+                                }
+                            } while (waitingListChange);
+                        }
+                        //if it's not the next one, then we wait for the correct one to arrive
+                        else
+                        {
+                            //TODO make sure they are ordered properly or something
+                            Console.WriteLine("Wasn't my turn, waiting... PubNmbr: "+ publicationNmbr);
+                            waitingPublications.Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
+                            lastPubMut.ReleaseMutex();
+                        }
+
+                    }
+                    //if i haven't then i add it to the list
+                    //assume the first one received is the lowest publicationnmbr. if not, the comparison for <= takes care of the problem
+                    //this has to be done for cases where publication travel up the tree halfway trough the publishing cause of a new subscription
+                    else
+                    {
+                        Console.WriteLine("[ReceivePublication]");
+                        //added new publisher and its corresponding publicationnmbr to the dictionary
+                        Console.WriteLine("Received publication from a NEW publisher");
+                        lastPublication.Add(pubURL, publicationNmbr);
+                        Console.WriteLine("new pub numbr " + publicationNmbr);
+                        lastPubMut.ReleaseMutex();
+
+                        //perform regular propagation
+                        Console.WriteLine("Started call for Log Update");
+                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                        PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
+                        Console.WriteLine("Ended call for Log Update");
+
+                        Console.WriteLine("Propagating...");
+                        PropagatePublication(publication, pubURL, topic, propagatorURL, publicationNmbr);
+
+                        Console.WriteLine("Sending Publication");
+                        SendPublication(publication, pubURL, topic);
+
+                        Console.WriteLine("[End of ReceivePublication]");
+                        Console.WriteLine("-------------------------------");
+                    }
+                }
+                //no order
+                if (order == -1)
+                {
+                    Console.WriteLine("Started call for Log Update");
+                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                    PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
+                    Console.WriteLine("Ended call for Log Update");
+
+                    Console.WriteLine("[ReceivePublication]");
+
+                    Console.WriteLine("Propagating...");
+                    PropagatePublication(publication, pubURL, topic, propagatorURL, publicationNmbr);
+
+                    Console.WriteLine("Sending Publication");
+                    SendPublication(publication, pubURL, topic);
+
+                    Console.WriteLine("[End of ReceivePublication]");
+                    Console.WriteLine("-------------------------------");
+                }
             }
-            else { functions.Add(() => this.ReceivePublication(publication, pubURL, topic, propagatorURL)); }
+            else { functions.Add(() => this.ReceivePublication(publication, pubURL, topic, propagatorURL, publicationNmbr)); }
         }
 
         //method used to propagate the publication up the Broker Tree.
         //Each Broker node sends it to his father until it reaches the root
-        public void PropagatePublication(string publication, string pubURL, string topic, string propagatorURL)
+        public void PropagatePublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr)
         {
             if (isFreeze == 0)
             {
@@ -579,7 +697,7 @@ namespace SESDAD
                     {
                         Console.WriteLine("Propagating to father");
                         BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
-                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL);
+                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
                         Console.WriteLine("Propagated");
                     }
 
@@ -591,7 +709,7 @@ namespace SESDAD
                             {
                                 Console.WriteLine("Propagating to child(s)");
                                 BrokerInterface childBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
-                                childBI.ReceivePublication(publication, pubURL, topic, Broker.myURL);
+                                childBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
                                 Console.WriteLine("Propagated");
                             }
                         }
@@ -610,7 +728,7 @@ namespace SESDAD
                             {
                                 Console.WriteLine("Propagating to father");
                                 BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
-                                fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL);
+                                fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
                                 Console.WriteLine("Propagated");
                             }
                         }
@@ -627,7 +745,7 @@ namespace SESDAD
                                 {
                                     Console.WriteLine("Propagating to child(s)");
                                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
-                                    bi.ReceivePublication(publication, pubURL, topic, Broker.myURL);
+                                    bi.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
                                     Console.WriteLine("Propagated");
                                 }
                             }
@@ -637,7 +755,7 @@ namespace SESDAD
                 Console.WriteLine("[End of PropagatePublication]");
                 Console.WriteLine("-------------------------------");
             }
-            else { functions.Add(() => this.PropagatePublication(publication, pubURL, topic, Broker.myURL)); }
+            else { functions.Add(() => this.PropagatePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr)); }
         }
 
         //method used to send the publication to one or several subscribers of the broker
@@ -933,7 +1051,7 @@ namespace SESDAD
             else
             {
                 //TODO trow and exception to the publisher
-                Console.WriteLine("Replica:There is no such Publisher connected to this Broker");
+                Console.WriteLine("Replica: There is no such Publisher connected to this Broker");
             }
         }
 
@@ -942,12 +1060,10 @@ namespace SESDAD
         //when one takes over its according boolean goes from true to false
         public void ActualizeLeader(char replicaNumber)
         {
-            Console.WriteLine("Actualizei o leader e sou o" +Broker.processname );
+            Console.WriteLine("Leader-Broker actualized");
             if (replicaNumber == '1')
-                Console.WriteLine(1);
                 aliveReplica1 = false;
             if (replicaNumber == '2')
-                Console.WriteLine(2);
                 aliveReplica2 = false;
         }
     }
