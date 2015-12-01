@@ -190,15 +190,88 @@ namespace SESDAD
         //constructor for remoteobject iniatialization
         public RemoteBroker()
         {
-            Console.WriteLine("Rawwwwwr");
+            Console.WriteLine("Starting RemoteBroker");
+        }
+
+        //auxiliary method that preform the overtake of the replica
+        //first it unregisters itself and tries to become the leader creating a new channel with leader properties
+        //if failure because other replica was faster then it return to passive mode
+        //TODO if failure because leader has failed but is not yet properly dead ( channel lingers cause garbage colector is slow)  then it keep retrying untill sucess
+        //@return return a int for sucess/failure of takeover. 0 is sucess,-1 means failure.
+        private int overtakeLeader()
+        {
+            try
+            {
+                Console.WriteLine("Unregestering old channel");
+                ChannelServices.UnregisterChannel(Broker.channel);
+                char replicanmbr = Broker.processname[Broker.processname.Length - 1];
+                Console.WriteLine("Doing channel properties");
+                BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
+                provider.TypeFilterLevel = TypeFilterLevel.Full;
+                IDictionary props = new Hashtable();
+                props["port"] = Broker.myPort;
+                TcpChannel newchannel = new TcpChannel(props, null, provider);
+                Console.WriteLine("Registeting new channel");
+                ChannelServices.RegisterChannel(newchannel, false);
+
+                BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.myURL);
+                rb.ConnectFatherBroker(Broker.fatherURL);
+                Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
+
+                //now we change the bool related to the replica that took over
+                //the replica that took over is no longer available on the old channel so leader shouldnt try to reach it
+                if (replicanmbr.Equals('1'))
+                {
+                    aliveReplica1 = false;
+                    string brkReplica = transformURL(Broker.processname, Broker.myURL, 2);
+                    //see if other replica is alive before starting conversaiton
+                    if (aliveReplica2)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
+                        //Notify other replica that im now the leader and former channel no longer exists
+                        bi.ActualizeLeader(replicanmbr);
+                        Console.WriteLine("Replica2 notified of takeover by Replica1");
+                    }
+                }
+                if (replicanmbr.Equals('2'))
+                {
+                    aliveReplica2 = false;
+                    //get other replica URL
+                    string brkReplica = transformURL(Broker.processname, Broker.myURL, 1);
+                    //see if other replica is alive before starting conversaiton
+                    if (aliveReplica1)
+                    {
+                        //TODO try catch in case broker dies by itself without system intervention
+                        BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
+                        //Notify other replica that im now the leader and former channel no longer exists
+                        bi.ActualizeLeader(replicanmbr);
+                        Console.WriteLine("Replica1 notified of takeover by Replica2");
+                    }
+                }
+                return 0;
+            }
+            //remoting exception - The channel has already been registered.
+            catch (RemotingException)
+            {
+                Console.WriteLine("Channel in use");
+                Console.WriteLine("Take over failed, returning to passive mode");
+                ChannelServices.RegisterChannel(Broker.channel, false);
+                return -1;
+            }
+            //SocketException - garbage colector hans't yet cleared the Leader 
+            catch (SocketException)
+            {
+                Console.WriteLine("Socket in use");
+                Console.WriteLine("Take over failed, returning to passive mode");
+                //sleep to make sure channel is unregistered before registering again
+                System.Threading.Thread.Sleep(5000);
+                ChannelServices.RegisterChannel(Broker.channel, false);
+                return -1;
+            }
         }
         public void StartPing()
-        {
-            //check if replica
-            //if replica: keep trying to connect to leader ( active replication)
-            //at first fail try and become leader.  if promotion fails check if another replica was faster: true - stay in replica cycle, false - keep trying to become leader
-            //replica does ping, leader DOESN'T reply pong.
-
+        {    
             //sleep to make sure leader had time to be initialized before pinging him
             System.Threading.Thread.Sleep(10000);
             while (true)
@@ -207,7 +280,7 @@ namespace SESDAD
                 {
                     BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.myURL);
                     bi.ReceivePing();
-                    //Console.WriteLine("ping");
+                    //Sleep so we don't overuse the system doing ping pong messages
                     System.Threading.Thread.Sleep(5000);
                 }
                 //TODO catch right exception
@@ -215,71 +288,12 @@ namespace SESDAD
                 catch (Exception)
                 {
                     Console.WriteLine("Main broker died, attempting to take over...");
-                    try
-                    {
-
-                        char replicanmbr = Broker.processname[Broker.processname.Length - 1];
-                        // lock (replicaMonitor)
-                        //{
-                        Console.WriteLine("Unregestering");
-                        ChannelServices.UnregisterChannel(Broker.channel);
-                        Console.WriteLine("Doing channel properties");
-                        BinaryServerFormatterSinkProvider provider = new BinaryServerFormatterSinkProvider();
-                        provider.TypeFilterLevel = TypeFilterLevel.Full;
-                        IDictionary props = new Hashtable();
-                        props["port"] = Broker.myPort;
-                        TcpChannel newchannel = new TcpChannel(props, null, provider);
-                        Console.WriteLine("Registeting");
-                        ChannelServices.RegisterChannel(newchannel, false);
-
-                        BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), Broker.myURL);
-                        rb.ConnectFatherBroker(Broker.fatherURL);
-                        Console.WriteLine("I '" + Broker.processname + "' took over and am now performing as Leader");
-
-                        //now we change the bool related to the replica that took over
-                        //the replica that took over is no longer available on the old channel so leader shouldnt try to reach it
-                        if (replicanmbr.Equals('1'))
-                        {
-                            aliveReplica1 = false;
-                            string brkReplica = transformURL(Broker.processname, Broker.myURL, 2);
-                            //see if other replica is alive before starting conversaiton
-                            if (aliveReplica2)
-                            {
-                                //TODO try catch in case broker dies by itself without system intervention
-                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
-                                //Notify other replica that im now the leader and former channel no longer exists
-                                bi.ActualizeLeader(replicanmbr);
-                            }
-
-                        }
-                        if (replicanmbr.Equals('2'))
-                        {
-                            aliveReplica2 = false;
-                            //get other replica URL
-                            string brkReplica = transformURL(Broker.processname, Broker.myURL, 1);
-                            //see if other replica is alive before starting conversaiton
-                            if (aliveReplica1)
-                            {
-                                //TODO try catch in case broker dies by itself without system intervention
-                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica);
-                                //Notify other replica that im now the leader and former channel no longer exists
-                                bi.ActualizeLeader(replicanmbr);
-                            }
-
-                        }
-                        return;
-                        //  }
-                    }
-                    //TODO catch right exception
-                    //duplicateservice?
-                    catch (Exception)
-                    {
-                        Console.WriteLine("Take over failed, returning to passive mode");
-                        ChannelServices.RegisterChannel(Broker.channel, false);
-                    }
+                    int sucess = 0;
+                    sucess = overtakeLeader();
+                    if(sucess == 0)
+                        break;                                       
                 }
             }
-
         }
         //function called by a subscriber wishing to connect to this broker
         public void ConnectSubscriber(string subURL)
