@@ -127,7 +127,16 @@ namespace SESDAD
                 }
                 catch (SocketException)
                 {
-
+                    Console.WriteLine("can't connect to broker... waiting and trying again");
+                    System.Threading.Thread.Sleep(5000);
+                    try
+                    {
+                        broker.AddSubscription(myURL, topic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
                 }
             }
             else { functions.Add(() => this.AddSubscription(topic)); }
@@ -143,7 +152,16 @@ namespace SESDAD
                 }
                 catch (SocketException)
                 {
-                    System.Console.WriteLine("Could not locate Broker");
+                    Console.WriteLine("can't connect to broker... waiting and trying again");
+                    System.Threading.Thread.Sleep(5000);
+                    try
+                    {
+                        broker.RemoveSubscription(myURL, topic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
                 }
             }
             else { functions.Add(() => this.RemoveSubscription(topic)); }
@@ -183,7 +201,17 @@ namespace SESDAD
                 }
                 catch (SocketException)
                 {
-
+                    Console.WriteLine("can't connect to broker... waiting and trying again");
+                    System.Threading.Thread.Sleep(5000);
+                    try
+                    {
+                        broker.AddSubscription(myURL, topic);
+                        form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
                 }
             }
             else { functions.Add(() => this.AddSubscriptionRemote(topic)); }
@@ -200,7 +228,17 @@ namespace SESDAD
                 }
                 catch (SocketException)
                 {
-                    System.Console.WriteLine("Could not locate Broker");
+                    Console.WriteLine("can't connect to broker... waiting and trying again");
+                    System.Threading.Thread.Sleep(5000);
+                    try
+                    {
+                        broker.RemoveSubscription(myURL, topic);
+                        form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
                 }
             }
             else { functions.Add(() => this.RemoveSubscriptionRemote(topic)); }

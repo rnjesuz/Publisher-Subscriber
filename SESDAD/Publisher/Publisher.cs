@@ -101,7 +101,16 @@ namespace SESDAD
                 }
                 catch (System.Net.Sockets.SocketException)
                 {
-                    Console.WriteLine("can't connect to broker");
+                    Console.WriteLine("can't connect to broker... waiting and trying again");
+                    System.Threading.Thread.Sleep(5000);
+                    try
+                    {
+                        broker.ChangePublishTopic(myURL, Topic);
+                    }
+                    catch (System.Net.Sockets.SocketException)
+                    {
+                        Console.WriteLine("can't connect to broker");
+                    }
                 }
             }
             else { functions.Add(() => this.ChangeTopic(Topic)); }
@@ -120,7 +129,17 @@ namespace SESDAD
                     }
                     catch (System.Net.Sockets.SocketException)
                     {
-                        Console.WriteLine("can't connect to broker");
+                        Console.WriteLine("can't connect to broker... waiting and trying again");
+                        System.Threading.Thread.Sleep(5000);
+                        try
+                        {
+                            broker.ReceivePublication(publication, myURL, myTopic, myURL);
+                        }
+                        catch (System.Net.Sockets.SocketException)
+                        {
+                            Console.WriteLine("can't connect to broker");
+                        }
+
                     }
 
                 }
@@ -152,7 +171,16 @@ namespace SESDAD
                             }
                             catch (System.Net.Sockets.SocketException)
                             {
-                                Console.WriteLine("can't connect to broker");
+                                Console.WriteLine("can't connect to broker... waiting and trying again");
+                                System.Threading.Thread.Sleep(5000);
+                                try
+                                {
+                                    broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL);
+                                }
+                                catch (System.Net.Sockets.SocketException)
+                                {
+                                    Console.WriteLine("can't connect to broker");
+                                }
                             }
 
                         }
