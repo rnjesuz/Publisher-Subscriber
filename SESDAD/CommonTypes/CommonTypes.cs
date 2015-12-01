@@ -39,7 +39,7 @@ namespace SESDAD
         void AddSubscriptionReplica(string subURL, string subscription);
         void RemoveSubscriptionReplica(string subURL, string subscription);
         void ChangePublishingTopicReplica(string pubURL, string topic);
-        void ActualizeLeader(int replicanumber);
+        void ActualizeLeader(char replicanumber);
     }
 
     public interface PublisherInterface

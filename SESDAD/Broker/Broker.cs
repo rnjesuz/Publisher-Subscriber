@@ -238,7 +238,7 @@ namespace SESDAD
 
                         //now we change the bool related to the replica that took over
                         //the replica that took over is no longer available on the old channel so leader shouldnt try to reach it
-                        if (replicanmbr.Equals("1"))
+                        if (replicanmbr.Equals('1'))
                         {
                             aliveReplica1 = false;
                             string brkReplica = transformURL(Broker.processname, Broker.myURL, 2);
@@ -252,7 +252,7 @@ namespace SESDAD
                             }
 
                         }
-                        if (replicanmbr.Equals("2"))
+                        if (replicanmbr.Equals('2'))
                         {
                             aliveReplica2 = false;
                             //get other replica URL
@@ -926,11 +926,14 @@ namespace SESDAD
         //method used to actualize booleans
         //each booleans is the state of a replica.
         //when one takes over its according boolean goes from true to false
-        public void ActualizeLeader(int replicaNumber)
+        public void ActualizeLeader(char replicaNumber)
         {
-            if (replicaNumber == 1)
+            Console.WriteLine("Actualizei o leader e sou o" +Broker.processname );
+            if (replicaNumber == '1')
+                Console.WriteLine(1);
                 aliveReplica1 = false;
-            if (replicaNumber == 2)
+            if (replicaNumber == '2')
+                Console.WriteLine(2);
                 aliveReplica2 = false;
         }
     }
