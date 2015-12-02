@@ -167,6 +167,10 @@ namespace SESDAD
         private List<Action> functions = new List<Action>();
         //list of publications ahead of time. the pairing is from publicationnbmr to the action it will execute when the time comes 
         private Dictionary<string, Dictionary<int, Action>> waitingPublications = new Dictionary<string, Dictionary<int, Action>>();
+        //for each broker connected to this one. check the last received publication received by each publisher
+        private Dictionary<string, Dictionary<string, int>> NeighbourBrokerLastPub = new Dictionary<string, Dictionary<string, int>>();
+        //mutex to acess and modify last pub received by a broker
+        private Mutex lastPubForBrokerMut = new Mutex();
         //mutex to control access to list of last publications
         private Mutex lastPubMut = new Mutex();
         //boolean to test if there were changes to the waitingpublications list
@@ -528,6 +532,8 @@ namespace SESDAD
                 fatherBroker = url;
                 BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
                 fatherBI.AddChild(Broker.myURL);
+                //make space in dictionary used for fifo ordering, for this broker ( the father)
+                NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
                 Console.WriteLine("Added father");
             }
         }
@@ -543,12 +549,19 @@ namespace SESDAD
                 childBroker.Add(url);
                 Console.WriteLine("Added child");
             }
+
             //creates and entrance in the hashmap for this child and its future subscriptions.
+            //used for filtering routing
             if (!(childsSubscriptions.ContainsKey(url)))
             {
                 childsSubscriptions.Add(url, new List<string>());
             }
+
+            //make space in dictionary for this broker ( one of te childs )
+            //used for fifo ordering
+            NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
         }
+
         //method to test if a waiting publication is the next one in line.
         //if it's time for it to be exectued do so,
         //if not keep it in the list
@@ -736,10 +749,46 @@ namespace SESDAD
                             Console.WriteLine("sub: " + subscription);
                             if (subscription.Equals(topic))
                             {
-                                Console.WriteLine("Propagating to father");
-                                BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
-                                fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
-                                Console.WriteLine("Propagated");
+                                //no ordering mode
+                                if (order == -1)
+                                {
+                                    Console.WriteLine("Propagating to father");
+                                    BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                                    fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
+                                    Console.WriteLine("Propagated");
+                                }
+                                //fifo ordering
+                                if(order == 0)
+                                {
+                                    //see if it's my first time sending to him
+                                    //if not first time..
+                                    if (NeighbourBrokerLastPub[fatherBroker].ContainsKey(pubURL))
+                                    {
+                                        //send the propagation with a little alteration. encapsulate the publicationNmbr from a real one to a "fake" one
+                                        //check whats the last publicationNmbr he received and send next one
+                                        Console.WriteLine("Propagating to father");
+                                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                                        lastPubForBrokerMut.WaitOne();
+                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[fatherBroker][pubURL]);
+                                        NeighbourBrokerLastPub[fatherBroker][pubURL]++;
+                                        lastPubForBrokerMut.ReleaseMutex();
+                                        Console.WriteLine("Propagated");
+                                    }
+                                    //if it's first time
+                                    else
+                                    {
+                                        //initialize dicitonary on the dict<string, dict<string, int>> variable
+                                        //since its first time propagating the fake pubnumber starts at 0
+                                        NeighbourBrokerLastPub[fatherBroker].Add(pubURL, 0);
+                                        Console.WriteLine("Propagating to father");
+                                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                                        lastPubForBrokerMut.WaitOne();
+                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[fatherBroker][pubURL]);
+                                        NeighbourBrokerLastPub[fatherBroker][pubURL]++;
+                                        lastPubForBrokerMut.ReleaseMutex();
+                                        Console.WriteLine("Propagated");
+                                    }
+                                }
                             }
                         }
                     }
@@ -753,10 +802,46 @@ namespace SESDAD
                             {
                                 if (subscription.Equals(topic))
                                 {
-                                    Console.WriteLine("Propagating to child(s)");
-                                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
-                                    bi.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
-                                    Console.WriteLine("Propagated");
+                                    //No ordering mode
+                                    if (order == -1)
+                                    {
+                                        Console.WriteLine("Propagating to child(s)");
+                                        BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                        bi.ReceivePublication(publication, pubURL, topic, Broker.myURL, publicationNmbr);
+                                        Console.WriteLine("Propagated");
+                                    }
+                                    //fifo ordering
+                                    if (order == 0)
+                                    {
+                                        //see if it's my first time sending to him
+                                        //if not first time..
+                                        if (NeighbourBrokerLastPub[child].ContainsKey(pubURL))
+                                        {
+                                            //send the propagation with a little alteration. encapsulate the publicationNmbr from a real one to a "fake" one
+                                            //check whats the last publicationNmbr he received and send next one
+                                            Console.WriteLine("Propagating to child(s)");
+                                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                            lastPubForBrokerMut.WaitOne();
+                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[child][pubURL]);
+                                            NeighbourBrokerLastPub[child][pubURL]++;
+                                            lastPubForBrokerMut.ReleaseMutex();
+                                            Console.WriteLine("Propagated");
+                                        }
+                                        //if it's first time
+                                        else
+                                        {
+                                            //initialize dicitonary on the dict<string, dict<string, int>> variable
+                                            //since its first time propagating the fake pubnumber starts at 0
+                                            NeighbourBrokerLastPub[child].Add(pubURL, 0);
+                                            Console.WriteLine("Propagating to child(s)");
+                                            BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                            lastPubForBrokerMut.WaitOne();
+                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[child][pubURL]);
+                                            NeighbourBrokerLastPub[child][pubURL]++;
+                                            lastPubForBrokerMut.ReleaseMutex();
+                                            Console.WriteLine("Propagated");
+                                        }
+                                    }
                                 }
                             }
                         }
