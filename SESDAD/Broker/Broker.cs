@@ -166,7 +166,7 @@ namespace SESDAD
         //List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
         //list of publications ahead of time. the pairing is from publicationnbmr to the action it will execute when the time comes 
-        private Dictionary<int, Action> waitingPublications = new Dictionary<int, Action>();
+        private Dictionary<string, Dictionary<int, Action>> waitingPublications = new Dictionary<string, Dictionary<int, Action>>();
         //mutex to control access to list of last publications
         private Mutex lastPubMut = new Mutex();
         //boolean to test if there were changes to the waitingpublications list
@@ -561,7 +561,7 @@ namespace SESDAD
                 //signal there was a modification on the waiting list
                 waitingListChange = true;
                 //remove myself from the waiting list
-                waitingPublications.Remove(publicationNmbr);
+                waitingPublications[pubURL].Remove(publicationNmbr);
                 lastPubMut.ReleaseMutex();
                 //call receiveiPublication
                 Console.WriteLine("Publication has reached it's turn");
@@ -588,12 +588,12 @@ namespace SESDAD
                     lastPubMut.WaitOne();
                     if (lastPublication.ContainsKey(pubURL)) {
                         //see if publication is the next one in line ( or a previous one delayed by network)
-                        if(publicationNmbr <= lastPublication[pubURL] + 1)
+                        if (publicationNmbr <= lastPublication[pubURL] + 1)
                         {
                             //do regular publication reception
                             Console.WriteLine("[ReceivePublication]");
                             //added new publisher and its corresponding publicationnmbr to the dictionary
-                            Console.WriteLine("Received publication "+publicationNmbr+" from "+pubURL);
+                            Console.WriteLine("Received publication " + publicationNmbr + " from " + pubURL);
                             lastPublication[pubURL] = publicationNmbr;
                             lastPubMut.ReleaseMutex();
                             //perform regular propagation
@@ -614,7 +614,7 @@ namespace SESDAD
                             //if theres was a publication waiting that got executed, keep testing the list until no more publications can be executed      
                             do
                             {
-                                foreach (var function in waitingPublications.Values)
+                                foreach (var function in waitingPublications[pubURL].Values)
                                 {
                                     Console.WriteLine("invoking a waiting publication");
                                     function.Invoke();
@@ -625,9 +625,18 @@ namespace SESDAD
                         else
                         {
                             //TODO make sure they are ordered properly or something
-                            Console.WriteLine("Wasn't my turn, waiting... PubNmbr: "+ publicationNmbr);
-                            waitingPublications.Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
-                            lastPubMut.ReleaseMutex();
+                            Console.WriteLine("Wasn't my turn, waiting... PubNmbr:" + publicationNmbr + " from pub:"+pubURL);
+                            if (waitingPublications.ContainsKey(pubURL))
+                            {
+                                waitingPublications[pubURL].Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
+                                lastPubMut.ReleaseMutex();
+                            }
+                            else
+                            {
+                                waitingPublications.Add(pubURL, new Dictionary<int, Action>());
+                                waitingPublications[pubURL].Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
+                                lastPubMut.ReleaseMutex();
+                            }
                         }
 
                     }
@@ -638,9 +647,10 @@ namespace SESDAD
                     {
                         Console.WriteLine("[ReceivePublication]");
                         //added new publisher and its corresponding publicationnmbr to the dictionary
-                        Console.WriteLine("Received publication from a NEW publisher");
+                        Console.WriteLine("Received publication from a NEW publisher: "+ pubURL);
+                        Console.WriteLine("Received publication at number: " + publicationNmbr);
                         lastPublication.Add(pubURL, publicationNmbr);
-                        Console.WriteLine("new pub numbr " + publicationNmbr);
+                        waitingPublications.Add(pubURL, new Dictionary<int, Action>());
                         lastPubMut.ReleaseMutex();
 
                         //perform regular propagation
