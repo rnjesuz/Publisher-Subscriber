@@ -289,7 +289,7 @@ namespace SESDAD
             }
         }
         public void StartPing()
-        {    
+        {
             //sleep to make sure leader had time to be initialized before pinging him
             System.Threading.Thread.Sleep(10000);
             while (true)
@@ -308,8 +308,8 @@ namespace SESDAD
                     Console.WriteLine("Main broker died, attempting to take over...");
                     int sucess = 0;
                     sucess = overtakeLeader();
-                    if(sucess == 0)
-                        break;                                       
+                    if (sucess == 0)
+                        break;
                 }
             }
         }
@@ -530,10 +530,15 @@ namespace SESDAD
             if (url != null)
             {
                 fatherBroker = url;
+                Console.WriteLine("my father is: " + url);
                 BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
+                Console.WriteLine("calling my child for: " + Broker.myURL);
                 fatherBI.AddChild(Broker.myURL);
                 //make space in dictionary used for fifo ordering, for this broker ( the father)
-                NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
+                if (!(NeighbourBrokerLastPub.ContainsKey(url)))
+                {
+                    NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
+                }
                 Console.WriteLine("Added father");
             }
         }
@@ -542,10 +547,8 @@ namespace SESDAD
         public void AddChild(string url)
         {
             //adds child to list of childs
-            //????????BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url);
             if (!(childBroker.Contains(url)) && childBroker != null)
             {
-                //?????????childBroker.Add((BrokerInterface)Activator.GetObject(typeof(BrokerInterface), url));
                 childBroker.Add(url);
                 Console.WriteLine("Added child");
             }
@@ -559,23 +562,60 @@ namespace SESDAD
 
             //make space in dictionary for this broker ( one of te childs )
             //used for fifo ordering
-            NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
+            if (!(NeighbourBrokerLastPub.ContainsKey(url)))
+            {
+                NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
+            }
+
+            //and propagate to replicas
+            if (aliveReplica1)
+            {
+                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                //TODO try catch in case broker dies by itself without system intervention
+                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                bi.AddChildReplica(url);
+            }
+            if (aliveReplica2)
+            {
+                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                //TODO try catch in case broker dies by itself without system intervention
+                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                bi2.AddChildReplica(url);
+            }
         }
 
         //method to test if a waiting publication is the next one in line.
         //if it's time for it to be exectued do so,
         //if not keep it in the list
-        private void TestPublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr){
-            //is my number the next one in line?
+        private void TestPublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr)
+        {
+
+            //is my number the next one in line?            
             lastPubMut.WaitOne();
             if (publicationNmbr <= lastPublication[pubURL] + 1)
             {
-                Console.WriteLine("Testing");
                 //signal there was a modification on the waiting list
                 waitingListChange = true;
                 //remove myself from the waiting list
                 waitingPublications[pubURL].Remove(publicationNmbr);
                 lastPubMut.ReleaseMutex();
+
+                //update replicas                           
+                if (aliveReplica1)
+                {
+                    string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.RemoveWaitingPubReplica(pubURL, publicationNmbr);
+                }
+                if (aliveReplica2)
+                {
+                    string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.RemoveWaitingPubReplica(pubURL, publicationNmbr);
+                }
+
                 //call receiveiPublication
                 Console.WriteLine("Publication has reached it's turn");
                 ReceivePublication(publication, pubURL, topic, propagatorURL, publicationNmbr);
@@ -592,14 +632,16 @@ namespace SESDAD
             if (isFreeze == 0)
             {
                 //total order
-                if (order == 1) {
+                if (order == 1)
+                {
                 }
                 //fifo order
                 if (order == 0)
                 {
                     //have i received any publication from this publisher?
                     lastPubMut.WaitOne();
-                    if (lastPublication.ContainsKey(pubURL)) {
+                    if (lastPublication.ContainsKey(pubURL))
+                    {
                         //see if publication is the next one in line ( or a previous one delayed by network)
                         if (publicationNmbr <= lastPublication[pubURL] + 1)
                         {
@@ -609,6 +651,23 @@ namespace SESDAD
                             Console.WriteLine("Received publication " + publicationNmbr + " from " + pubURL);
                             lastPublication[pubURL] = publicationNmbr;
                             lastPubMut.ReleaseMutex();
+
+                            //update replicas                            
+                            if (aliveReplica1)
+                            {
+                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                bi.LastPublicationReplica(pubURL, publicationNmbr);
+                            }
+                            if (aliveReplica2)
+                            {
+                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                bi2.LastPublicationReplica(pubURL, publicationNmbr);
+                            }
+
                             //perform regular propagation
                             Console.WriteLine("Started call for Log Update");
                             PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
@@ -638,7 +697,7 @@ namespace SESDAD
                         else
                         {
                             //TODO make sure they are ordered properly or something
-                            Console.WriteLine("Wasn't my turn, waiting... PubNmbr:" + publicationNmbr + " from pub:"+pubURL);
+                            Console.WriteLine("Wasn't my turn, waiting... PubNmbr:" + publicationNmbr + " from pub:" + pubURL);
                             if (waitingPublications.ContainsKey(pubURL))
                             {
                                 waitingPublications[pubURL].Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
@@ -650,6 +709,22 @@ namespace SESDAD
                                 waitingPublications[pubURL].Add(publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
                                 lastPubMut.ReleaseMutex();
                             }
+
+                            //update replicas
+                            if (aliveReplica1)
+                            {
+                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                bi.AddWaitingPubReplica(pubURL, publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
+                            }
+                            if (aliveReplica2)
+                            {
+                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                bi2.AddWaitingPubReplica(pubURL, publicationNmbr, () => this.TestPublication(publication, pubURL, topic, propagatorURL, publicationNmbr));
+                            }
                         }
 
                     }
@@ -660,11 +735,27 @@ namespace SESDAD
                     {
                         Console.WriteLine("[ReceivePublication]");
                         //added new publisher and its corresponding publicationnmbr to the dictionary
-                        Console.WriteLine("Received publication from a NEW publisher: "+ pubURL);
+                        Console.WriteLine("Received publication from a NEW publisher: " + pubURL);
                         Console.WriteLine("Received publication at number: " + publicationNmbr);
                         lastPublication.Add(pubURL, publicationNmbr);
                         waitingPublications.Add(pubURL, new Dictionary<int, Action>());
                         lastPubMut.ReleaseMutex();
+
+                        //update replicas
+                        if (aliveReplica1)
+                        {
+                            string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                            //TODO try catch in case broker dies by itself without system intervention
+                            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                            bi.LastPublicationReplica(pubURL, publicationNmbr);
+                        }
+                        if (aliveReplica2)
+                        {
+                            string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                            //TODO try catch in case broker dies by itself without system intervention
+                            BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                            bi2.LastPublicationReplica(pubURL, publicationNmbr);
+                        }
 
                         //perform regular propagation
                         Console.WriteLine("Started call for Log Update");
@@ -758,7 +849,7 @@ namespace SESDAD
                                     Console.WriteLine("Propagated");
                                 }
                                 //fifo ordering
-                                if(order == 0)
+                                if (order == 0)
                                 {
                                     //see if it's my first time sending to him
                                     //if not first time..
@@ -769,10 +860,29 @@ namespace SESDAD
                                         Console.WriteLine("Propagating to father");
                                         BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                                         lastPubForBrokerMut.WaitOne();
-                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[fatherBroker][pubURL]);
+                                        int pubNbmrforBroker = NeighbourBrokerLastPub[fatherBroker][pubURL];
+                                        lastPubForBrokerMut.ReleaseMutex();
+                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, pubNbmrforBroker);
+                                        lastPubForBrokerMut.WaitOne();
                                         NeighbourBrokerLastPub[fatherBroker][pubURL]++;
                                         lastPubForBrokerMut.ReleaseMutex();
                                         Console.WriteLine("Propagated");
+
+                                        //update replicas
+                                        if (aliveReplica1)
+                                        {
+                                            string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                            //TODO try catch in case broker dies by itself without system intervention
+                                            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                            bi.UpdateNeighbourPubNmbrReplica(fatherBroker, pubURL);
+                                        }
+                                        if (aliveReplica2)
+                                        {
+                                            string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                            //TODO try catch in case broker dies by itself without system intervention
+                                            BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                            bi2.UpdateNeighbourPubNmbrReplica(fatherBroker, pubURL);
+                                        }
                                     }
                                     //if it's first time
                                     else
@@ -783,10 +893,29 @@ namespace SESDAD
                                         Console.WriteLine("Propagating to father");
                                         BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
                                         lastPubForBrokerMut.WaitOne();
-                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[fatherBroker][pubURL]);
+                                        int pubNbmrforBroker = NeighbourBrokerLastPub[fatherBroker][pubURL];
+                                        lastPubForBrokerMut.ReleaseMutex();
+                                        fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, pubNbmrforBroker);
+                                        lastPubForBrokerMut.WaitOne();
                                         NeighbourBrokerLastPub[fatherBroker][pubURL]++;
                                         lastPubForBrokerMut.ReleaseMutex();
                                         Console.WriteLine("Propagated");
+
+                                        //update replicas
+                                        if (aliveReplica1)
+                                        {
+                                            string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                            //TODO try catch in case broker dies by itself without system intervention
+                                            BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                            bi.UpdateNeighbourPubNmbrReplica(fatherBroker, pubURL);
+                                        }
+                                        if (aliveReplica2)
+                                        {
+                                            string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                            //TODO try catch in case broker dies by itself without system intervention
+                                            BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                            bi2.UpdateNeighbourPubNmbrReplica(fatherBroker, pubURL);
+                                        }
                                     }
                                 }
                             }
@@ -822,10 +951,29 @@ namespace SESDAD
                                             Console.WriteLine("Propagating to child(s)");
                                             BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                                             lastPubForBrokerMut.WaitOne();
-                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[child][pubURL]);
+                                            int pubNbmrforBroker = NeighbourBrokerLastPub[child][pubURL];
+                                            lastPubForBrokerMut.ReleaseMutex();
+                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, pubNbmrforBroker);
+                                            lastPubForBrokerMut.WaitOne();
                                             NeighbourBrokerLastPub[child][pubURL]++;
                                             lastPubForBrokerMut.ReleaseMutex();
                                             Console.WriteLine("Propagated");
+
+                                            //update replicas
+                                            if (aliveReplica1)
+                                            {
+                                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                                //TODO try catch in case broker dies by itself without system intervention
+                                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                                bi.UpdateNeighbourPubNmbrReplica(child, pubURL);
+                                            }
+                                            if (aliveReplica2)
+                                            {
+                                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                                //TODO try catch in case broker dies by itself without system intervention
+                                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                                bi2.UpdateNeighbourPubNmbrReplica(child, pubURL);
+                                            }
                                         }
                                         //if it's first time
                                         else
@@ -836,10 +984,30 @@ namespace SESDAD
                                             Console.WriteLine("Propagating to child(s)");
                                             BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
                                             lastPubForBrokerMut.WaitOne();
-                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, NeighbourBrokerLastPub[child][pubURL]);
+                                            int pubNbmrforBroker = NeighbourBrokerLastPub[child][pubURL];
+                                            lastPubForBrokerMut.ReleaseMutex();
+                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, pubNbmrforBroker);
+                                            lastPubForBrokerMut.WaitOne();
                                             NeighbourBrokerLastPub[child][pubURL]++;
                                             lastPubForBrokerMut.ReleaseMutex();
+                                            fatherBI.ReceivePublication(publication, pubURL, topic, Broker.myURL, pubNbmrforBroker);
                                             Console.WriteLine("Propagated");
+
+                                            //update replicas
+                                            if (aliveReplica1)
+                                            {
+                                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                                //TODO try catch in case broker dies by itself without system intervention
+                                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                                bi.UpdateNeighbourPubNmbrReplica(child, pubURL);
+                                            }
+                                            if (aliveReplica2)
+                                            {
+                                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                                //TODO try catch in case broker dies by itself without system intervention
+                                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                                bi2.UpdateNeighbourPubNmbrReplica(child, pubURL);
+                                            }
                                         }
                                     }
                                 }
@@ -1160,6 +1328,100 @@ namespace SESDAD
                 aliveReplica1 = false;
             if (replicaNumber == '2')
                 aliveReplica2 = false;
+        }
+
+        //method to propagate broker childs from leader to replicas
+        //the replica then adds the childs URL and propreties ubti it's tables
+        public void AddChildReplica(string url)
+        {
+            //adds child to list of childs
+            if (!(childBroker.Contains(url)) && childBroker != null)
+            {
+                childBroker.Add(url);
+                Console.WriteLine("Replica: Added child");
+            }
+
+            //creates and entrance in the hashmap for this child and its future subscriptions.
+            //used for filtering routing
+            if (!(childsSubscriptions.ContainsKey(url)))
+            {
+                childsSubscriptions.Add(url, new List<string>());
+            }
+
+            //make space in dictionary for this broker ( one of te childs )
+            //used for fifo ordering
+            if (!(NeighbourBrokerLastPub.ContainsKey(url)))
+            {
+                NeighbourBrokerLastPub.Add(url, new Dictionary<string, int>());
+            }
+        }
+
+        public void RemoveWaitingPubReplica(string pubURL, int publicationNmbr)
+        {
+            lastPubMut.WaitOne();
+            waitingPublications[pubURL].Remove(publicationNmbr);
+            lastPubMut.ReleaseMutex();
+            Console.WriteLine("Replica: Removed waiting action nº " + publicationNmbr + " for " + pubURL);
+        }
+
+        public void LastPublicationReplica(string pubURL, int pubNmbr)
+        {
+            lastPubMut.WaitOne();
+            if (lastPublication.ContainsKey(pubURL))
+            {
+                lastPublication[pubURL] = pubNmbr;
+                lastPubMut.ReleaseMutex();
+            }
+            else
+            {
+                lastPublication.Add(pubURL, pubNmbr);
+                waitingPublications.Add(pubURL, new Dictionary<int, Action>());
+                lastPubMut.ReleaseMutex();
+            }
+            Console.WriteLine("Replica: Added publication nº " + pubNmbr + " from " + pubURL);
+        }
+
+        public void AddWaitingPubReplica(string pubURL, int publicationNmbr, Action action)
+        {
+            lastPubMut.WaitOne();
+            if (waitingPublications.ContainsKey(pubURL))
+            {
+                waitingPublications[pubURL].Add(publicationNmbr, action);
+                lastPubMut.ReleaseMutex();
+            }
+            else
+            {
+                waitingPublications.Add(pubURL, new Dictionary<int, Action>());
+                waitingPublications[pubURL].Add(publicationNmbr, action);
+                lastPubMut.ReleaseMutex();
+            }
+            Console.WriteLine("Replica: Added Publication nº " + publicationNmbr + " to waiting queue");
+        }
+
+        public void UpdateNeighbourPubNmbrReplica(string BrokerURL, string pubURL)
+        {
+            int pubNbmrforBroker = 1;
+            if (!(NeighbourBrokerLastPub.ContainsKey(BrokerURL)))
+            {
+                lastPubForBrokerMut.WaitOne();
+                NeighbourBrokerLastPub.Add(BrokerURL, new Dictionary<string, int>());
+                lastPubForBrokerMut.ReleaseMutex();
+            }
+            if (NeighbourBrokerLastPub[BrokerURL].ContainsKey(pubURL))
+            {
+                lastPubForBrokerMut.WaitOne();
+                NeighbourBrokerLastPub[BrokerURL][pubURL]++;
+                pubNbmrforBroker = NeighbourBrokerLastPub[BrokerURL][pubURL];
+                lastPubForBrokerMut.ReleaseMutex();
+            }
+            else
+            {
+                NeighbourBrokerLastPub[BrokerURL].Add(pubURL, 0);
+                lastPubForBrokerMut.WaitOne();
+                pubNbmrforBroker = NeighbourBrokerLastPub[BrokerURL][pubURL];
+                lastPubForBrokerMut.ReleaseMutex();
+            }
+            Console.WriteLine("Replica: Updated broker:" + BrokerURL + " with last pub nº received:" + pubNbmrforBroker);
         }
     }
 }

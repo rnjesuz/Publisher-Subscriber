@@ -40,6 +40,11 @@ namespace SESDAD
         void RemoveSubscriptionReplica(string subURL, string subscription);
         void ChangePublishingTopicReplica(string pubURL, string topic);
         void ActualizeLeader(char replicanumber);
+        void AddChildReplica(string url);
+        void RemoveWaitingPubReplica(string pubURL, int publicationNmbr);
+        void LastPublicationReplica(string pubURL, int pubNmbr);
+        void AddWaitingPubReplica(string pubURL, int publicationNmbr, Action action);
+        void UpdateNeighbourPubNmbrReplica(string BrokerURL, string pubURL);
     }
 
     public interface PublisherInterface
