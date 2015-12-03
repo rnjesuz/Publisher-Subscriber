@@ -48,12 +48,12 @@ namespace SESDAD
             IDictionary props = new Hashtable();
             if (brokerType == 1)
             {
-                int newPort = myPort + 1337;
+                int newPort = myPort + 40 + (myPort % 10);
                 props["port"] = newPort;
             }
             else if (brokerType == 2)
             {
-                int newPort = myPort + 1338;
+                int newPort = myPort + 41 + (myPort % 10);
                 props["port"] = newPort;
             }
             else
@@ -133,16 +133,18 @@ namespace SESDAD
             string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
             string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
 
-            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            //since 2 processes can't sahre same port then replicas add 40 or 41 to port number
+            //to prevent collision with other replicas we also add the last number from this specific replica
             if (brokerType == 1)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
             if (brokerType == 2)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
 
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
             parsedURL[2] = newURLv2;
             string newURL = string.Join(":", parsedURL);
+            Console.WriteLine(newURL);
             return newURL;
         }
         public void ConnectReplica()
@@ -1215,11 +1217,12 @@ namespace SESDAD
             string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
             string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
 
-            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            //since 2 processes can't sahre same port then replicas add 40 or 41 to port number
+            //to prevent collision with other replicas we also add the last number from this specific replica
             if (replicaNum == 1)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
             if (replicaNum == 2)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
 
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);

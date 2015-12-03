@@ -128,7 +128,7 @@ namespace SESDAD
 
                                     if (siteTree[parsedLine[5]].Equals("none"))
                                     {
-                                        //new Broker(parsedLine[1], parsedLine[7]); //enviar o nome do processo e o URL em que ele tem de se ligar
+                                        //last argument: 0/1/2 indicates type of broker instance. 0 for leader, 1/2 for replica
                                         string[] args = new string[5] { parsedLine[1], parsedLine[7], eventRouting.ToString(), "0", Ordering.ToString() };
                                         string[] argsReplica1 = new string[5] { parsedLine[1] + "-1", parsedLine[7], eventRouting.ToString(), "1", Ordering.ToString() };
                                         string[] argsReplica2 = new string[5] { parsedLine[1] + "-2", parsedLine[7], eventRouting.ToString(), "2", Ordering.ToString() };
@@ -155,8 +155,7 @@ namespace SESDAD
                                     }
                                     else
                                     {
-                                        // new Broker(parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]]);
-                                        //last argument: 0/1 indicates type of broker instance. 0 for leader, 1 for replic 
+                                        //last argument: 0/1 indicates type of broker instance. 0 for leader, 1 for replica
                                         string[] args = new string[6] { parsedLine[1], parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "0", Ordering.ToString() };
                                         string[] argsReplica1 = new string[6] { parsedLine[1]+"-1", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "1", Ordering.ToString() };
                                         string[] argsReplica2 = new string[6] { parsedLine[1]+"-2", parsedLine[7], SiteToBroker[siteTree[parsedLine[5]]], eventRouting.ToString(), "2", Ordering.ToString() };
@@ -191,7 +190,6 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
-                                    //new Publisher(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
                                     string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]] };
                                     ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1] + ".exe");
                                     startInfo.FileName = "publisher.exe";
@@ -206,7 +204,6 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     subscriberTable.Add(parsedLine[1], parsedLine[7]);
-                                    //new Subscriber(parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]]);
                                     string[] args = new string[3] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]] };
                                     ProcessStartInfo startInfo = new ProcessStartInfo();
                                     startInfo.FileName = "subscriber.exe";
@@ -301,7 +298,6 @@ namespace SESDAD
                         case "Subscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
-                            //TODO subscribe process to topic
                             try
                             {
                                 string subName = subscriberTable[processname];
@@ -316,7 +312,6 @@ namespace SESDAD
                         case "Unsubscribe":
                             processname = inputParsed.ElementAt(1);
                             topicname = inputParsed.ElementAt(3);
-                            //TODO unsubscribe process from topic
                             try {
                                 string subName = subscriberTable[processname];
                                 remotePM.SendUnsubscribeOrder(subName, topicname);
@@ -337,7 +332,6 @@ namespace SESDAD
                         topicname = inputParsed.ElementAt(5);
                         numberofevents = Int32.Parse(inputParsed.ElementAt(3));
                         sleepInterval = Int32.Parse(inputParsed.ElementAt(7));
-                        //TODO do publishing event with needed protocol
                         try {
                             string pubName = publisherTable[processname];
                             remotePM.SendPublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
@@ -410,8 +404,6 @@ namespace SESDAD
                     try
                     {
                         processname = inputParsed.ElementAt(1);
-                        //TODO make node wake up. child.snoze()?
-                        //TODO crash a node. Use SIGKILL??
                         if (processname.Contains("broker"))
                         {
                             remotePM.UnfreezeBroker(brokerTable[processname]);
@@ -435,7 +427,6 @@ namespace SESDAD
                 case "Wait":
                     Console.WriteLine("Sleeping... zZZzzZ");
                     sleepInterval = Int32.Parse(inputParsed.ElementAt(1));
-                    //TODO go sleep. how do u auto sleep?
                     System.Threading.Thread.Sleep(sleepInterval);
                     Console.WriteLine("I'm Awake!");
                     break;
@@ -454,7 +445,6 @@ namespace SESDAD
                 case "Quit":
                     remotePM.Quit();
                     active = false;
-                    //TODO go to every process and terminate them
                     break;
                 case "Commands":
                     Console.WriteLine("Please wait while we read commands from file");
@@ -718,11 +708,12 @@ namespace SESDAD
             string[] parsedURL = url.Split(':');  //parsedURL[0] = "tcp"; parsedURL[1]= "//localhost"; parsedURL[2]= "PORT/broker";
             string[] parsedURLv2 = parsedURL[2].Split('/'); //parsedURLv2[0] = "PORT"; parsedURLv2[1]= "broker";
 
-            //since 2 processes can't sahre same port then replicas add 1337 or 1338 to port number
+            //since 2 processes can't sahre same port then replicas add 40 or 41 to port number
+            //to prevent collision with other replicas we also add the last number from this specific replica
             if (replicaNum == 1)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1337).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
             if (replicaNum == 2)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 1338).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
             
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
