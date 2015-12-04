@@ -21,6 +21,7 @@ namespace SESDAD
         void ConnectPublisher(string subURL);
         void ChangePublishTopic(string pubURL, string topic);
         void ConnectFatherBroker(string url);
+        void ReceivePublicationTOTAL(string publication, string pubURL, string topic, string propagatorURL, int ticket);
         void ReceivePublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNumber);
         void PropagatePublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNumber);
         void SendPublication(string publication, string pubURL, string publicationTopic);
@@ -33,6 +34,7 @@ namespace SESDAD
         void NewSubscriptionForChild(string subscription);
         void RemoveSubscriptionForFather(string myURL, string topic);
         void RemoveSubscriptionForChild(string topic);
+        int GetTicket();
 
         void ConnectSubscriberReplica(string pubURL);
         void ConnectPublisherReplica(string pubURL);
@@ -45,6 +47,9 @@ namespace SESDAD
         void LastPublicationReplica(string pubURL, int pubNmbr);
         void AddWaitingPubReplica(string pubURL, int publicationNmbr, Action action);
         void UpdateNeighbourPubNmbrReplica(string BrokerURL, string pubURL);
+        void RemoveWaitingPubTOTALReplica(int ticket);
+        void LastPublicationTOTALReplica(int ticket);
+        void AddWaitingPubTOTALReplica(int ticket, Action function);
     }
 
     public interface PublisherInterface

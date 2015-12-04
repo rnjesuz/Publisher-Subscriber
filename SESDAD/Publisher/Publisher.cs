@@ -19,6 +19,8 @@ namespace SESDAD
         internal static string myURL;
         internal static int myPort;
         private string processname;
+        //bool to check is system is in mode total order.
+        internal static bool totalOrder = false;
 
         /// <summary>
         /// The main entry point for the application.
@@ -30,7 +32,7 @@ namespace SESDAD
             //myURL = "tcp://localhost:8088/pub";
             //TODO remove after PuppetMaster is implemented
             //myPort = 8088;
-            Publisher publisher = new Publisher(args[0], args[1], args[2]);
+            Publisher publisher = new Publisher(args[0], args[1], args[2], Boolean.Parse(args[3]));
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
@@ -47,12 +49,13 @@ namespace SESDAD
 
         }
 
-        public Publisher(string name, string pubURL, string brkURL)
+        public Publisher(string name, string pubURL, string brkURL, bool order)
         {
             myURL = pubURL;
             brokerURL = brkURL;
             myPort = parseURL(pubURL);
             processname = name;
+            totalOrder = order;
         }
 
         public void ConnectToBroker()
@@ -84,6 +87,7 @@ namespace SESDAD
         private BrokerInterface broker = Publisher.broker;
         private string myURL = Publisher.myURL;
         string myTopic;
+        private bool totalOrder = Publisher.totalOrder;
         //controls number of publications done by this publisher
         int publications = 0;
         //mutex to control acces to publications variable
@@ -127,19 +131,34 @@ namespace SESDAD
             {
                 if (myTopic != null)
                 {
-                    PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                    PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
-                    try
+                    if (totalOrder)
                     {
-                        publicationsMut.WaitOne();
-                        broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
-                        publications++;
-                        publicationsMut.ReleaseMutex();
+                        int ticket;
+                        ticket = broker.GetTicket();
+                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                        PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
+                        try
+                        {
+                            broker.ReceivePublicationTOTAL(publication, myURL, myTopic, myURL, ticket);
+                        }
+                        catch (System.Net.Sockets.SocketException)
+                        {
+                            Console.WriteLine("can't connect to broker... waiting and trying again");
+                            System.Threading.Thread.Sleep(5000);
+                            try
+                            {
+                                broker.ReceivePublicationTOTAL(publication, myURL, myTopic, myURL, ticket);
+                            }
+                            catch (System.Net.Sockets.SocketException)
+                            {
+                                Console.WriteLine("can't connect to broker");
+                            }
+                        }
                     }
-                    catch (System.Net.Sockets.SocketException)
+                    else
                     {
-                        Console.WriteLine("can't connect to broker... waiting and trying again");
-                        System.Threading.Thread.Sleep(5000);
+                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                        PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
                         try
                         {
                             publicationsMut.WaitOne();
@@ -149,11 +168,23 @@ namespace SESDAD
                         }
                         catch (System.Net.Sockets.SocketException)
                         {
-                            Console.WriteLine("can't connect to broker");
+                            Console.WriteLine("can't connect to broker... waiting and trying again");
+                            System.Threading.Thread.Sleep(5000);
+                            try
+                            {
+                                publicationsMut.WaitOne();
+                                broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
+                                publications++;
+                                publicationsMut.ReleaseMutex();
+                            }
+                            catch (System.Net.Sockets.SocketException)
+                            {
+                                Console.WriteLine("can't connect to broker");
+                            }
+
                         }
 
                     }
-
                 }
                 else
                 {

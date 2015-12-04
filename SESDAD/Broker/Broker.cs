@@ -10,6 +10,49 @@ using System.Threading;
 
 namespace SESDAD
 {
+    //this class is a class available to all brokers.
+    //its a simple class that is used to dispense "tickets" for other processes to use
+    static internal class BrokerTicket
+    {
+        //an integer that saves the last given ticket
+        static private int ticket = 0;
+        //a lock to protect acess to the tickets
+        static private Mutex lockTicket = new Mutex();
+        //lock used while in totalordering AND filtering mode to lock publishing of messages on the system
+        static private Mutex lockPublishing = new Mutex();
+        //int used in total order AND filtering mode to save intereted nodes in the system
+        static private int interestedNodes = 0;
+
+        //dispenses the tickets and increments the counter
+        public static int GetTicket()
+        {
+            lockTicket.WaitOne();
+            int newTicket = ticket;
+            ticket++;
+            lockTicket.ReleaseMutex();
+            return newTicket;
+        }
+
+        internal static void Lock()
+        {
+            lockPublishing.WaitOne();
+        }
+
+        internal static void UpdateInterested(int interested)
+        {
+            if (interested > interestedNodes)
+                interestedNodes = interested;
+        }
+
+        internal static void DecreaseInterested()
+        {
+            if (interestedNodes == 0)
+                lockPublishing.ReleaseMutex();
+            else
+                interestedNodes--;
+        }
+    }
+
     public class Broker
     {
         internal static int myPort;
@@ -136,9 +179,9 @@ namespace SESDAD
             //since 2 processes can't sahre same port then replicas add 40 or 41 to port number
             //to prevent collision with other replicas we also add the last number from this specific replica
             if (brokerType == 1)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10)).ToString();
             if (brokerType == 2)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10)).ToString();
 
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
@@ -175,6 +218,12 @@ namespace SESDAD
         private Mutex lastPubForBrokerMut = new Mutex();
         //mutex to control access to list of last publications
         private Mutex lastPubMut = new Mutex();
+        //mutex to control acess to list of last publications during TOTAL order
+        private Mutex lastPubTOTALMut = new Mutex();
+        //int to save the last received publication during TOTAL order
+        int lastPublicationTOTAL = -1;
+        //List of waiting publication that arrived ahead of time during TOTAL order; ( mapping is done by ticketnumber -> publication method)
+        private Dictionary<int, Action> waitingPublicationsTOTAL = new Dictionary<int, Action>();
         //boolean to test if there were changes to the waitingpublications list
         bool waitingListChange = false;
         //Dictionary associating a Publisher to the last received publication( last received is indicated by a integer)
@@ -189,10 +238,8 @@ namespace SESDAD
         //Dictionary of every subscriber connected to this Broker and his subscription
         Dictionary<string, List<string>> subscribers = new Dictionary<string, List<string>>();
         //Father node in the Broker Tree. CAN be NULL. root of the tree
-        //BrokerInterface fatherBroker;
-        //Child node in the Broker Tree. CAN be NULL. last leaf
-        //List<BrokerInterface> childBroker = new List<BrokerInterface>();
         string fatherBroker;
+        //Child node in the Broker Tree. CAN be NULL. last leaf
         List<string> childBroker = new List<string>();
         //List of father's interested subscription. NULL unless routing is mode filtering
         List<string> fatherSubscriptions = new List<string>();
@@ -589,6 +636,188 @@ namespace SESDAD
         //method to test if a waiting publication is the next one in line.
         //if it's time for it to be exectued do so,
         //if not keep it in the list
+        private void TestPublicationTOTAL(string publication, string pubURL, string topic, string propagatorURL, int ticket)
+        {
+            //is my number the next one in line?            
+            lastPubTOTALMut.WaitOne();
+            if (ticket <= lastPublicationTOTAL + 1)
+            {
+                //signal there was a modification on the waiting list
+                waitingListChange = true;
+                //remove myself from the waiting list
+                waitingPublicationsTOTAL.Remove(ticket);
+                lastPubTOTALMut.ReleaseMutex();
+
+                //update replicas                           
+                if (aliveReplica1)
+                {
+                    string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                    bi.RemoveWaitingPubTOTALReplica(ticket);
+                }
+                if (aliveReplica2)
+                {
+                    string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                    //TODO try catch in case broker dies by itself without system intervention
+                    BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                    bi2.RemoveWaitingPubTOTALReplica(ticket);
+                }
+
+                //call receiveiPublication
+                Console.WriteLine("Publication has reached it's turn");
+                ReceivePublicationTOTAL(publication, pubURL, topic, propagatorURL, ticket);
+            }
+            else
+                waitingListChange = false;
+        }
+
+        public void ReceivePublicationTOTAL(string publication, string pubURL, string topic, string propagatorURL, int ticket)
+        {
+            if (isFreeze == 0)
+            {
+                //double check if were in total ordering
+                if (order == 1)
+                {
+                    //mode flooding
+                    if (Broker.isFiltering == 0)
+                    {
+                        lastPubTOTALMut.WaitOne();
+                        //see if publication is the next one in line ( or a previous one delayed by network)
+                        if (ticket <= lastPublicationTOTAL + 1)
+                        {
+                            //do regular publication reception
+                            Console.WriteLine("[ReceivePublicationTOTAL]");
+                            //added last received publication
+                            Console.WriteLine("Received publication " + ticket + " from " + pubURL);
+                            lastPublicationTOTAL = ticket;
+                            lastPubTOTALMut.ReleaseMutex();
+
+                            //update replicas                            
+                            if (aliveReplica1)
+                            {
+                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                bi.LastPublicationTOTALReplica(ticket);
+                            }
+                            if (aliveReplica2)
+                            {
+                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                bi2.LastPublicationTOTALReplica(ticket);
+                            }
+
+                            //perform regular propagation
+                            Console.WriteLine("Started call for Log Update");
+                            PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                            PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
+                            Console.WriteLine("Ended call for Log Update");
+
+                            Console.WriteLine("Propagating...");
+                            PropagatePublication(publication, pubURL, topic, propagatorURL, ticket);
+
+                            Console.WriteLine("Sending Publication");
+                            SendPublication(publication, pubURL, topic);
+
+                            Console.WriteLine("[End of ReceivePublication]");
+                            Console.WriteLine("-------------------------------");
+                            //Test all remaining publications that could be waiting for this one
+                            //if theres was a publication waiting that got executed, keep testing the list until no more publications can be executed      
+                            do
+                            {
+                                foreach (var function in waitingPublicationsTOTAL.Values)
+                                {
+                                    Console.WriteLine("invoking a waiting publication");
+                                    function.Invoke();
+                                }
+                            } while (waitingListChange);
+                        }
+                        //if it's not the next one, then we wait for the correct one to arrive
+                        else
+                        {
+                            //TODO make sure they are ordered properly or something
+                            Console.WriteLine("Wasn't my turn, waiting... Ticket:" + ticket + " from pub:" + pubURL);
+                            waitingPublicationsTOTAL.Add(ticket, () => this.TestPublicationTOTAL(publication, pubURL, topic, propagatorURL, ticket));
+                            lastPubTOTALMut.ReleaseMutex();
+
+                            //update replicas
+                            if (aliveReplica1)
+                            {
+                                string brkReplica1 = transformURL(Broker.processname, Broker.myURL, 1);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica1);
+                                bi.AddWaitingPubTOTALReplica(ticket, () => this.TestPublicationTOTAL(publication, pubURL, topic, propagatorURL, ticket));
+                            }
+                            if (aliveReplica2)
+                            {
+                                string brkReplica2 = transformURL(Broker.processname, Broker.myURL, 2);
+                                //TODO try catch in case broker dies by itself without system intervention
+                                BrokerInterface bi2 = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brkReplica2);
+                                bi2.AddWaitingPubTOTALReplica(ticket, () => this.TestPublicationTOTAL(publication, pubURL, topic, propagatorURL, ticket));
+                            }
+                        }
+                    }
+                    //mode filtering
+                    else
+                    {
+                        Console.WriteLine("[ReceivePublicationTOTAL]");
+                        BrokerTicket.Lock();
+                        int interested = 0;
+                        //check how many adjacent nodes are interested
+                        //check father then childs
+                        foreach (string subscription in fatherSubscriptions)
+                        {
+                            if (!fatherBroker.Equals(propagatorURL))
+                            {
+                                Console.WriteLine("sub: " + subscription);
+                                if (subscription.Equals(topic))
+                                {
+                                    interested++;
+                                }
+                            }
+                        }
+                        foreach (string child in childsSubscriptions.Keys)
+                        {
+                            if (child != propagatorURL)
+                            {
+                                foreach (string subscription in childsSubscriptions[child])
+                                {
+                                    if (subscription.Equals(topic))
+                                    {
+                                        interested++;
+                                    }
+                                }
+                            }
+                        }
+                        //now i have interested nodes
+                        //updated variable that controls system propagation and it's ending
+                        BrokerTicket.UpdateInterested(interested);
+
+                        //perform regular propagation
+                        Console.WriteLine("Started call for Log Update");
+                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                        PM.UpdateEventLog("BroEvent", Broker.myURL, pubURL, topic);
+                        Console.WriteLine("Ended call for Log Update");
+
+                        Console.WriteLine("Propagating...");
+                        PropagatePublication(publication, pubURL, topic, propagatorURL, ticket);
+
+                        Console.WriteLine("Sending Publication");
+                        SendPublication(publication, pubURL, topic);
+
+                        Console.WriteLine("[End of ReceivePublication]");
+                        Console.WriteLine("-------------------------------");
+                    }
+                }
+            }
+            else { functions.Add(() => this.ReceivePublicationTOTAL(publication, pubURL, topic, propagatorURL, ticket)); }
+        }
+
+        //method to test if a waiting publication is the next one in line.
+        //if it's time for it to be exectued do so,
+        //if not keep it in the list
         private void TestPublication(string publication, string pubURL, string topic, string propagatorURL, int publicationNmbr)
         {
 
@@ -633,10 +862,6 @@ namespace SESDAD
         {
             if (isFreeze == 0)
             {
-                //total order
-                if (order == 1)
-                {
-                }
                 //fifo order
                 if (order == 0)
                 {
@@ -842,6 +1067,14 @@ namespace SESDAD
                             Console.WriteLine("sub: " + subscription);
                             if (subscription.Equals(topic))
                             {
+                                //total ordering
+                                if (order == 1)
+                                {
+                                    Console.WriteLine("Propagating to father");
+                                    BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), fatherBroker);
+                                    fatherBI.ReceivePublicationTOTAL(publication, pubURL, topic, Broker.myURL, publicationNmbr);
+                                    Console.WriteLine("Propagated");
+                                }
                                 //no ordering mode
                                 if (order == -1)
                                 {
@@ -923,7 +1156,6 @@ namespace SESDAD
                             }
                         }
                     }
-
                     //check if any child is intereted
                     foreach (string child in childsSubscriptions.Keys)
                     {
@@ -933,6 +1165,14 @@ namespace SESDAD
                             {
                                 if (subscription.Equals(topic))
                                 {
+                                    //total ordering
+                                    if (order == 1)
+                                    {
+                                        Console.WriteLine("Propagating to father");
+                                        BrokerInterface fatherBI = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), child);
+                                        fatherBI.ReceivePublicationTOTAL(publication, pubURL, topic, Broker.myURL, publicationNmbr);
+                                        Console.WriteLine("Propagated");
+                                    }
                                     //No ordering mode
                                     if (order == -1)
                                     {
@@ -1038,12 +1278,15 @@ namespace SESDAD
                     {
                         if (publicationTopic.Contains(topic))
                         {
+                            //different behaviour for total ordering mode
+                            if (order == 1)
+                                BrokerTicket.DecreaseInterested();
+
                             SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
                             newSubscriber.ReceivePublication(publication, pubURL, publicationTopic);
                         }
                     }
                 }
-                //propagate = 0;
                 Console.WriteLine("Finished sending publication");
                 Console.WriteLine("[End of SendPublication]");
                 Console.WriteLine("-------------------------------");
@@ -1203,6 +1446,12 @@ namespace SESDAD
 
         }
 
+        public int GetTicket()
+        {
+            int ticket;
+            ticket = BrokerTicket.GetTicket();
+            return ticket;
+        }
 
         //--------------------------------------------------------
         //from now on method are pretty much duplicated.
@@ -1220,9 +1469,9 @@ namespace SESDAD
             //since 2 processes can't sahre same port then replicas add 40 or 41 to port number
             //to prevent collision with other replicas we also add the last number from this specific replica
             if (replicaNum == 1)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 40 + (int.Parse(parsedURLv2[0]) % 10)).ToString();
             if (replicaNum == 2)
-                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10) ).ToString();
+                parsedURLv2[0] = (int.Parse(parsedURLv2[0]) + 41 + (int.Parse(parsedURLv2[0]) % 10)).ToString();
 
             //rejoin modified parsels into the new URL
             string newURLv2 = string.Join("/", parsedURLv2);
@@ -1425,6 +1674,30 @@ namespace SESDAD
                 lastPubForBrokerMut.ReleaseMutex();
             }
             Console.WriteLine("Replica: Updated broker:" + BrokerURL + " with last pub nº received:" + pubNbmrforBroker);
+        }
+
+        public void RemoveWaitingPubTOTALReplica(int ticket)
+        {
+            lastPubTOTALMut.WaitOne();
+            waitingPublicationsTOTAL.Remove(ticket);
+            lastPubTOTALMut.ReleaseMutex();
+            Console.WriteLine("Replica: Removed waiting action nº " + ticket);
+        }
+
+        public void LastPublicationTOTALReplica(int ticket)
+        {
+            lastPubTOTALMut.WaitOne();
+            lastPublicationTOTAL = ticket;
+            lastPubTOTALMut.ReleaseMutex();
+            Console.WriteLine("Replica: Updated last received publication to: " + ticket);
+        }
+
+        public void AddWaitingPubTOTALReplica(int ticket, Action function)
+        {
+            lastPubTOTALMut.WaitOne();
+            waitingPublicationsTOTAL.Add(ticket, function);
+            lastPubTOTALMut.ReleaseMutex();
+            Console.WriteLine("Replica: Added waiting action nº " + ticket);
         }
     }
 }
