@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SESDAD
@@ -93,5 +94,49 @@ namespace SESDAD
         void UnfreezePublisher(string URL);
         void StatusUpdate();
         void Quit();
+    }
+
+    //this class is a class available to all brokers.
+    //its a simple class that is used to dispense "tickets" for other processes to use
+    public static class BrokerTicket
+    {
+        //an integer that saves the last given ticket
+        static private int ticket = 0;
+        //a lock to protect acess to the tickets
+        static private Mutex lockTicket = new Mutex();
+        //lock used while in totalordering AND filtering mode to lock publishing of messages on the system
+        static private Mutex lockPublishing = new Mutex();
+        //int used in total order AND filtering mode to save intereted nodes in the system
+        static private int interestedNodes = 0;
+
+        //dispenses the tickets and increments the counter
+        public static int GetTicket()
+        {
+            lockTicket.WaitOne();
+            int newTicket = Int32.Parse(System.IO.File.ReadAllText(@"C:\Users\Public\TestFolder\WriteText.txt"));
+            //ticket++;
+            newTicket++;
+            lockTicket.ReleaseMutex();
+            return newTicket;
+        }
+
+        public static void Lock()
+        {
+            lockPublishing.WaitOne();
+        }
+
+        public static void UpdateInterested(int interested)
+        {
+            if (interested > interestedNodes)
+                interestedNodes = interested;
+        }
+
+        public static void DecreaseInterested()
+        {
+            if (interestedNodes == 0)
+                lockPublishing.ReleaseMutex();
+            else
+                interestedNodes--;
+        }
     }
 }

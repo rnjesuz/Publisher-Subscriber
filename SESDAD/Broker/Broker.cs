@@ -10,48 +10,6 @@ using System.Threading;
 
 namespace SESDAD
 {
-    //this class is a class available to all brokers.
-    //its a simple class that is used to dispense "tickets" for other processes to use
-    static internal class BrokerTicket
-    {
-        //an integer that saves the last given ticket
-        static private int ticket = 0;
-        //a lock to protect acess to the tickets
-        static private Mutex lockTicket = new Mutex();
-        //lock used while in totalordering AND filtering mode to lock publishing of messages on the system
-        static private Mutex lockPublishing = new Mutex();
-        //int used in total order AND filtering mode to save intereted nodes in the system
-        static private int interestedNodes = 0;
-
-        //dispenses the tickets and increments the counter
-        public static int GetTicket()
-        {
-            lockTicket.WaitOne();
-            int newTicket = ticket;
-            ticket++;
-            lockTicket.ReleaseMutex();
-            return newTicket;
-        }
-
-        internal static void Lock()
-        {
-            lockPublishing.WaitOne();
-        }
-
-        internal static void UpdateInterested(int interested)
-        {
-            if (interested > interestedNodes)
-                interestedNodes = interested;
-        }
-
-        internal static void DecreaseInterested()
-        {
-            if (interestedNodes == 0)
-                lockPublishing.ReleaseMutex();
-            else
-                interestedNodes--;
-        }
-    }
 
     public class Broker
     {
