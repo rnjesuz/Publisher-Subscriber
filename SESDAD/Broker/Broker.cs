@@ -1448,8 +1448,10 @@ namespace SESDAD
 
         public int GetTicket()
         {
+            Console.WriteLine("Getting Global Ticket");
             int ticket;
             ticket = BrokerTicket.GetTicket();
+            Console.WriteLine("Ticket is " + ticket);
             return ticket;
         }
 

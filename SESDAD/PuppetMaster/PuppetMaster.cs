@@ -190,10 +190,7 @@ namespace SESDAD
                                 if (parsedLine[0].Equals("Process") && (parsedLine[2].Equals("Is") | parsedLine[2].Equals("is")) && parsedLine[4].Equals("On") && parsedLine[6].Equals("URL"))
                                 {
                                     publisherTable.Add(parsedLine[1], parsedLine[7]);
-                                    bool totalOrder = false;
-                                    if (Ordering == 1)
-                                        totalOrder = true;
-                                    string[] args = new string[4] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]], totalOrder.ToString() };
+                                    string[] args = new string[4] { parsedLine[1], parsedLine[7], SiteToBroker[parsedLine[5]], Ordering.ToString() };
                                     ProcessStartInfo startInfo = new ProcessStartInfo(parsedLine[1] + ".exe");
                                     startInfo.FileName = "publisher.exe";
                                     startInfo.Arguments = String.Join(" ", args);
