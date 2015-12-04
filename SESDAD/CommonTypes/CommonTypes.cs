@@ -110,14 +110,14 @@ namespace SESDAD
         //int used in total order AND filtering mode to save intereted nodes in the system
         static private int interestedNodes = 0;
 
-        static private FileStream fs;
+        static private FileStream fs = new FileStream(@"" + Directory.GetParent(Directory.GetCurrentDirectory()) + "\\Puppetmaster" +"\\..\\..\\Ticket.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
         //dispenses the tickets and increments the counter
         public static int GetTicket()
         {
             lockTicket.WaitOne();
             fs.Lock(0, 1);
-            int newTicket = Int32.Parse(System.IO.File.ReadAllText(@"C:\Users\Public\TestFolder\WriteText.txt"));
+            int newTicket = Int32.Parse(System.IO.File.ReadAllText(@"" + Directory.GetParent(Directory.GetCurrentDirectory()) + "\\Puppetmaster" + "\\..\\..\\Ticket.txt"));
             //ticket++;
             newTicket++;
             fs.Unlock(0, 1);
@@ -144,10 +144,6 @@ namespace SESDAD
                 interestedNodes--;
         }
 
-        public static void createTicketFile()
-        {
-            File.WriteAllText (@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", "0");
-            fs = new FileStream(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        }
+
     }
 }
