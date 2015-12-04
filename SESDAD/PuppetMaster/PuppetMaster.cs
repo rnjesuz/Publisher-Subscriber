@@ -59,6 +59,9 @@ namespace SESDAD
             File.WriteAllBytes(@"" + directory + "\\..\\..\\Log.txt", new byte[] { 0 });
    
             ReadConfigFile();
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.FileName = "brokerticket.exe";
+            Process.Start(startInfo);
 
             TcpChannel channel = new TcpChannel(8069);
             ChannelServices.RegisterChannel(channel, false);
@@ -67,6 +70,8 @@ namespace SESDAD
 
             //boolean to read from a textfile. false = no script, true = with script
             bool readCommands = false;
+
+
         
             Console.WriteLine("Do you wish to read a Commands File?");
             Console.WriteLine("Type \"YES\" to read, or anything else not to");
@@ -264,6 +269,7 @@ namespace SESDAD
                         break;
                 }
             }
+
             Console.WriteLine("Reached end of ConfigFile.txt");
         }
 
