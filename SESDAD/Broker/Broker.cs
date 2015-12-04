@@ -25,7 +25,7 @@ namespace SESDAD
         internal static string replicaURL;
         internal static TcpChannel channel;
 
-        internal static RemoteBroker rm = new RemoteBroker();
+        internal static RemoteBroker rm;
 
         static void Main(string[] args)
         {
@@ -66,6 +66,8 @@ namespace SESDAD
 
             //TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
+
+            rm = new RemoteBroker();
 
             if (brokerType == 0)
             {
@@ -679,7 +681,7 @@ namespace SESDAD
                             Console.WriteLine("Sending Publication");
                             SendPublication(publication, pubURL, topic);
 
-                            Console.WriteLine("[End of ReceivePublication]");
+                            Console.WriteLine("[End of ReceivePublicationTOTAL]");
                             Console.WriteLine("-------------------------------");
                             //Test all remaining publications that could be waiting for this one
                             //if theres was a publication waiting that got executed, keep testing the list until no more publications can be executed      
@@ -765,7 +767,7 @@ namespace SESDAD
                         Console.WriteLine("Sending Publication");
                         SendPublication(publication, pubURL, topic);
 
-                        Console.WriteLine("[End of ReceivePublication]");
+                        Console.WriteLine("[End of ReceivePublicationTOTAL]");
                         Console.WriteLine("-------------------------------");
                     }
                 }
@@ -1237,7 +1239,7 @@ namespace SESDAD
                         if (publicationTopic.Contains(topic))
                         {
                             //different behaviour for total ordering mode
-                            if (order == 1)
+                            if ( (Broker.isFiltering == 1) && (order == 1) )
                                 BrokerTicket.DecreaseInterested();
 
                             SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
