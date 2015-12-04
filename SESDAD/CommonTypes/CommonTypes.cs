@@ -111,33 +111,27 @@ namespace SESDAD
         //int used in total order AND filtering mode to save intereted nodes in the system
         static private int interestedNodes = 0;
 
-        static string TicketPath =  @"" + Directory.GetCurrentDirectory() + "\\..\\PuppetMaster\\Ticket.txt";
         static private FileStream fs = new FileStream(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
         //dispenses the tickets and increments the counter
         public static int GetTicket()
         {
-            int newTicket;
+            int Ticket;
             lockTicket.WaitOne();
             fs.Lock(0, 1);
             const Int32 BufferSize = 512;
-            using (var streamReader = new StreamReader(fs, Encoding.UTF8, true, BufferSize))
-            {
-                String line = streamReader.ReadLine();
-                newTicket = Int32.Parse(line);
-            }
-            //string[] lines = System.IO.File.ReadAllLines(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt");
-            //int newTicket = Int32.Parse(lines[0].ToString());
-            //ticket++;
-            newTicket++;
-            using (var streamWriter = new StreamWriter(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", false))
-            {
-                streamWriter.WriteLine(newTicket.ToString());
-            }
+            StreamReader streamReader = new StreamReader(fs);
+            String line = streamReader.ReadLine();
+            Ticket = Int32.Parse(line);
+            Ticket++;
+
+            StreamWriter writer = new StreamWriter(fs);
+            writer.WriteLine(Ticket.ToString());
+            writer.Flush();
 
             fs.Unlock(0, 1);
             lockTicket.ReleaseMutex();
-            return newTicket;
+            return Ticket;
         }
 
         public static void Lock()
@@ -158,7 +152,6 @@ namespace SESDAD
             else
                 interestedNodes--;
         }
-
-
+        
     }
 }

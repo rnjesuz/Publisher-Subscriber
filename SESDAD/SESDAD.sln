@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Broker", "Broker\Broker.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerWindow", "BrokerWindow\BrokerWindow.csproj", "{BBFCF793-C2B5-4946-87FC-6EA8799D3ECB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerTicket", "BrokerTicket\BrokerTicket.csproj", "{FAC96EDC-657C-4BD9-98B3-9E6B42CC17C0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{BBFCF793-C2B5-4946-87FC-6EA8799D3ECB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BBFCF793-C2B5-4946-87FC-6EA8799D3ECB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BBFCF793-C2B5-4946-87FC-6EA8799D3ECB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAC96EDC-657C-4BD9-98B3-9E6B42CC17C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAC96EDC-657C-4BD9-98B3-9E6B42CC17C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAC96EDC-657C-4BD9-98B3-9E6B42CC17C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAC96EDC-657C-4BD9-98B3-9E6B42CC17C0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
