@@ -36,13 +36,16 @@ namespace SESDAD
 
             RemotingServices.Marshal(rbt, "brokerticket", typeof(RemoteBrokerTicket));
             //RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteBroker), "broker", WellKnownObjectMode.Singleton);
-            BrokerInterface rb = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), "tcp://localhost:9999/brokerticket");
+            BrokerTicketInterface rb = (BrokerTicketInterface)Activator.GetObject(typeof(BrokerTicketInterface), "tcp://localhost:9999/brokerticket");
+            rb.Start();
 
 
             //solely to prevent console from closing
             while (true) { }
         }
     }
+
+    [Serializable]
     class RemoteBrokerTicket : MarshalByRefObject, BrokerTicketInterface
     {
 
@@ -84,6 +87,9 @@ namespace SESDAD
                 interestedNodes--;
         }
 
+        public void Start()
+        {
+            Console.WriteLine("Starting BrokerTicket");
+        }
     }
-}
 }

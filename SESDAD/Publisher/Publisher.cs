@@ -82,6 +82,8 @@ namespace SESDAD
         }
     }
 
+
+    [Serializable]
     class RemotePublisher : MarshalByRefObject, PublisherInterface
     {
 

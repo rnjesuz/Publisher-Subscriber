@@ -100,6 +100,7 @@ namespace SESDAD
 
     public interface BrokerTicketInterface
     {
+        void Start();
         int GetTicket();
         void Lock();
         void UpdateInterested(int interested);
