@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -110,16 +111,30 @@ namespace SESDAD
         //int used in total order AND filtering mode to save intereted nodes in the system
         static private int interestedNodes = 0;
 
-        static private FileStream fs = new FileStream(@"" + Directory.GetParent(Directory.GetCurrentDirectory()) + "\\Puppetmaster" +"\\..\\..\\Ticket.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite);
+        static string TicketPath =  @"" + Directory.GetCurrentDirectory() + "\\..\\PuppetMaster\\Ticket.txt";
+        static private FileStream fs = new FileStream(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
         //dispenses the tickets and increments the counter
         public static int GetTicket()
         {
+            int newTicket;
             lockTicket.WaitOne();
             fs.Lock(0, 1);
-            int newTicket = Int32.Parse(System.IO.File.ReadAllText(@"" + Directory.GetParent(Directory.GetCurrentDirectory()) + "\\Puppetmaster" + "\\..\\..\\Ticket.txt"));
+            const Int32 BufferSize = 512;
+            using (var streamReader = new StreamReader(fs, Encoding.UTF8, true, BufferSize))
+            {
+                String line = streamReader.ReadLine();
+                newTicket = Int32.Parse(line);
+            }
+            //string[] lines = System.IO.File.ReadAllLines(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt");
+            //int newTicket = Int32.Parse(lines[0].ToString());
             //ticket++;
             newTicket++;
+            using (var streamWriter = new StreamWriter(@"" + Directory.GetCurrentDirectory() + "\\..\\..\\Ticket.txt", false))
+            {
+                streamWriter.WriteLine(newTicket.ToString());
+            }
+
             fs.Unlock(0, 1);
             lockTicket.ReleaseMutex();
             return newTicket;
