@@ -51,6 +51,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BrokerTicket\BrokerTicket.csproj">
+      <Project>{fac96edc-657c-4bd9-98b3-9e6b42cc17c0}</Project>
+      <Name>BrokerTicket</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Broker\Broker.csproj">
       <Project>{05a0f9bb-9d8f-42a6-baa5-297936ef8a82}</Project>
       <Name>Broker</Name>

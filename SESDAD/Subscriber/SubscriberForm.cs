@@ -49,7 +49,7 @@ namespace SESDAD
 
         internal void UpdatePublication(string message)
         {
-            PublicationBox.Text = PublicationBox.Text + message + "\r\n";
+            PublicationBox.Text =  message + "\r\n";
         }
 
         private void PublicationBox_TextChanged(object sender, EventArgs e)

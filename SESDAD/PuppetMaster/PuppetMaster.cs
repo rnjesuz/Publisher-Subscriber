@@ -263,7 +263,7 @@ namespace SESDAD
                                 break;
 
                             case "TOTAL":
-                                Ordering = 1;
+                                Ordering = 0;
                                 break;
                         }
                         break;
