@@ -98,6 +98,14 @@ namespace SESDAD
         void Quit();
     }
 
+    public interface BrokerTicketInterface
+    {
+        int GetTicket();
+        void Lock();
+        void UpdateInterested(int interested);
+        void DecreaseInterested();
+    }
+
     //this class is a class available to all brokers.
     //its a simple class that is used to dispense "tickets" for other processes to use
     public static class BrokerTicket

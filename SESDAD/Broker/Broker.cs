@@ -753,7 +753,8 @@ namespace SESDAD
                         }
                         //now i have interested nodes
                         //updated variable that controls system propagation and it's ending
-                        BrokerTicket.UpdateInterested(interested);
+                        BrokerTicketInterface bt = (BrokerTicketInterface)Activator.GetObject(typeof(BrokerTicketInterface), "tcp://localhost:9999/brokerticket");
+                        bt.UpdateInterested(interested);
 
                         //perform regular propagation
                         Console.WriteLine("Started call for Log Update");
@@ -1239,8 +1240,11 @@ namespace SESDAD
                         if (publicationTopic.Contains(topic))
                         {
                             //different behaviour for total ordering mode
-                            if ( (Broker.isFiltering == 1) && (order == 1) )
-                                BrokerTicket.DecreaseInterested();
+                            if ((Broker.isFiltering == 1) && (order == 1))
+                            {
+                                BrokerTicketInterface bt = (BrokerTicketInterface)Activator.GetObject(typeof(BrokerTicketInterface), "tcp://localhost:9999/brokerticket");
+                                bt.DecreaseInterested();
+                            }
 
                             SubscriberInterface newSubscriber = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subscriber);
                             newSubscriber.ReceivePublication(publication, pubURL, publicationTopic);
@@ -1410,7 +1414,8 @@ namespace SESDAD
         {
             Console.WriteLine("Getting Global Ticket");
             int ticket;
-            ticket = BrokerTicket.GetTicket();
+            BrokerTicketInterface bt = (BrokerTicketInterface)Activator.GetObject(typeof(BrokerTicketInterface), "tcp://localhost:9999/brokerticket");
+            ticket = bt.GetTicket();
             Console.WriteLine("Ticket is " + ticket);
             return ticket;
         }
