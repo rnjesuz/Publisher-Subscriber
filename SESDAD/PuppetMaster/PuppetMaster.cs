@@ -55,6 +55,8 @@ namespace SESDAD
         {
             //System.Diagnostics.Process.Start("https://www.youtube.com/watch?v=xnKhsTXoKCI");
 
+            BrokerTicket.createTicketFile();
+
             File.WriteAllBytes(@"" + directory + "\\..\\..\\Log.txt", new byte[] { 0 });
    
             ReadConfigFile();
