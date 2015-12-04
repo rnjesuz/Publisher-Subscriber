@@ -151,7 +151,6 @@ namespace SESDAD
                                         startInfo.FileName = "broker.exe";
                                         startInfo.Arguments = String.Join(" ", argsReplica2);
                                         Process.Start(startInfo);
-                                        Console.WriteLine("acabei as replicas do "+parsedLine[1]);
                                     }
                                     else
                                     {
