@@ -43,7 +43,7 @@ namespace SESDAD
         //boolean for the event routing .  0 = FLOODING, 1 = FILTER; Default is FLOODING
         static int eventRouting = 0;
 
-        //boolean for the ordering . -1=NO, 0 = FIFO, 1 = TOTAL; Default is FIFO
+        //boolean for the ordering . -1 = NO, 0 = FIFO, 1 = TOTAL; Default is FIFO
         static int Ordering = 0;
 
         //boolean for log level. 0 = LIGHT, 1 = FULL; Default is LIGHT logging
@@ -263,7 +263,7 @@ namespace SESDAD
                                 break;
 
                             case "TOTAL":
-                                Ordering = -1;
+                                Ordering = 1;
                                 break;
                         }
                         break;

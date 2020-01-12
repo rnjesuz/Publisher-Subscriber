@@ -1,0 +1,7 @@
+Subscriber subscriber1 Subscribe /p00-0
+Publisher publisher01 Publish 120 Ontopic /p00-0 Interval 500
+Publisher publisher02 Publish 120 Ontopic /p00-0 Interval 500
+Wait 30000
+Status
+Wait 3000
+Status
