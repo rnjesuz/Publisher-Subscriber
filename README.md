@@ -82,8 +82,10 @@ The PuppetMaster can send the following commands to the other processes:
 This command is used to force asubscriber to subscribe to the given topic.
 * **Subscriber** *processname* **Unsubscribe** *topicname*</br>
 This command is used to force a subscriber to unsubscribe to the given topic.
+* **Publisher** *processname* **Ontopic** *topicname*</br>
+This command is used to force a publisher to produce on a given topic. The content of these events is a string that includes the name of the publisher.
 * **Publisher** *processname* **Publish** *numberofevents* **Ontopic** *topicname* **Interval** *x_ms*</br>
-This command is used to force a publisher to produce a sequence of *numberofevents* on a given topic. The publisher should sleep *x* milliseconds between two consecutive events. The content of these events should be a string that includes the name of the publisher and a sequence number.
+This command is used to force a publisher to produce a sequence of *numberofevents* on a given topic. The publisher should sleep *x* milliseconds between two consecutive events. The content of these events is a string that includes the name of the publisher and a sequence number.
 * **Status**</br>
 This command makes all nodes in the system print their current status. The status command should present brief information about the state of the system (who is present, which nodes are presumed failed, which subscriptions are active, etc...).
 * **Crash** *processname*</br>
@@ -92,6 +94,8 @@ This command is used to force a process to crash (can be sent to publishers, sub
 This command is used to simulate a delay in the process (can be sent to publishers, subscribers or brokers). After receiving a freeze, the process continues receiving messages but stops processing them until the PuppetMaster “unfreezes” it.
 * **Unfreeze** *processname*</br>
 This command is used to return a process to normal operation.  Pending messages that were received while the process was frozen, should be processed when this command is received.
+* **Quit**</br>
+This command is used to close all processses started by the PuppetMaster.
 
 To automate testing, the PuppetMaster can also read a sequence of such commands from a script file. An additional command is accepted when executing a script file:
 * **Wait** *x_ms*</br>
