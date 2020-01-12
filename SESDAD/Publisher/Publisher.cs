@@ -22,33 +22,6 @@ namespace SESDAD
         //bool to check is system is in mode total order.
         internal static bool totalOrder = false;
 
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main(string[] args)
-        {
-            //TODO remove after PuppetMaster is implemented
-            //myURL = "tcp://localhost:8088/pub";
-            //TODO remove after PuppetMaster is implemented
-            //myPort = 8088;
-            Publisher publisher = new Publisher(args[0], args[1], args[2], Int32.Parse(args[3]));
-
-            TcpChannel channel = new TcpChannel(myPort);
-            ChannelServices.RegisterChannel(channel, false);
-
-            //TODO remove after PuppetMaster is implemented
-            //brokerURL = "tcp://localhost:8086/broker";
-            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher), "pub", WellKnownObjectMode.Singleton);
-
-            publisher.ConnectToBroker();
-
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new PublisherForm());
-
-        }
-
         public Publisher(string name, string pubURL, string brkURL, int order)
         {
             myURL = pubURL;
@@ -57,6 +30,27 @@ namespace SESDAD
             processname = name;
             if (order == 1)
                 totalOrder = true;
+        }
+
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main(string[] args)
+        {
+            Publisher publisher = new Publisher(args[0], args[1], args[2], Int32.Parse(args[3]));
+
+            TcpChannel channel = new TcpChannel(myPort);
+            ChannelServices.RegisterChannel(channel, false);
+
+            RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemotePublisher), "pub", WellKnownObjectMode.Singleton);
+
+            publisher.ConnectToBroker();
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new PublisherForm());
+
         }
 
         public void ConnectToBroker()
@@ -87,186 +81,127 @@ namespace SESDAD
     class RemotePublisher : MarshalByRefObject, PublisherInterface
     {
 
-        private BrokerInterface broker = Publisher.broker;
-        private string myURL = Publisher.myURL;
-        string myTopic;
-        private bool totalOrder = Publisher.totalOrder;
-        //controls number of publications done by this publisher
+        private static BrokerInterface broker = Publisher.broker;
+        private static string myURL = Publisher.myURL;
+        private static string myTopic;
+        private static bool totalOrder = Publisher.totalOrder;
+        // Controls number of publications done by this publisher
         int publications = 0;
-        //mutex to control acces to publications variable
+        // Mutex to control acces to publications variable
         private static Mutex publicationsMut = new Mutex();
-
-        //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
+        // bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
-
-        //List of functions to call when the process is unfreezed
+        // List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
 
-        public void ChangeTopic(string Topic)
+        public void ChangeTopic(string topic)
         {
             if (isFreeze == 0)
             {
-                myTopic = Topic;
-                try
-                {
-                    broker.ChangePublishTopic(myURL, Topic);
-                }
-                catch (System.Net.Sockets.SocketException)
-                {
-                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                    System.Threading.Thread.Sleep(5000);
-                    try
-                    {
-                        broker.ChangePublishTopic(myURL, Topic);
+                myTopic = topic;
+                do {
+                    try {
+                        broker.ChangePublishTopic(myURL, topic);
+                        // Success! Exit loop
+                        break;
+                    } catch (System.Net.Sockets.SocketException) {
+                        // Broker is down. Waiting till he returns from doctor's appointment
+                        Console.WriteLine("Can't connect to broker... waiting and trying again");
+                        System.Threading.Thread.Sleep(5000);
                     }
-                    catch (System.Net.Sockets.SocketException)
-                    {
-                        Console.WriteLine("can't connect to broker");
-                    }
-                }
+                } while(true);
             }
-            else { functions.Add(() => this.ChangeTopic(Topic)); }
+            else { functions.Add(() => this.ChangeTopic(topic)); }
         }
 
         public void SendPublication(string publication)
         {
-            if (isFreeze == 0)
-            {
-                if (myTopic != null)
-                {
-                    if (totalOrder)
-                    {
-                        int ticket;
-                        ticket = broker.GetTicket();
-                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                        PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
-                        try
-                        {
-                            broker.ReceivePublicationTOTAL(publication, myURL, myTopic, myURL, ticket);
-                        }
-                        catch (System.Net.Sockets.SocketException)
-                        {
-                            Console.WriteLine("can't connect to broker... waiting and trying again");
-                            System.Threading.Thread.Sleep(5000);
-                            try
-                            {
-                                broker.ReceivePublicationTOTAL(publication, myURL, myTopic, myURL, ticket);
+            if (isFreeze == 0) {
+                if (myTopic != null) {
+                    if (totalOrder) {
+                        SendLogEvent();
+                        do {
+                            try {
+                                SendPublicationToBroker(publication, broker.GetTicket());
+                                break;
+                            } catch (System.Net.Sockets.SocketException) {
+                                // Broker is down. Waiting till he returns from doctor's appointment
+                                Console.WriteLine("Can't connect to broker... waiting and trying again");
+                                System.Threading.Thread.Sleep(5000);
                             }
-                            catch (System.Net.Sockets.SocketException)
-                            {
-                                Console.WriteLine("can't connect to broker");
+                        } while (true);
+                    } else {
+                        SendLogEvent();
+                        do {
+                            try {
+                                SendPublicationToBroker(publication);
+                                break;
+                            } catch (System.Net.Sockets.SocketException) {
+                                // Broker is down. Waiting till he returns from doctor's appointment
+                                Console.WriteLine("Can't connect to broker... waiting and trying again");
+                                System.Threading.Thread.Sleep(5000);
                             }
-                        }
+                        } while (true);
                     }
-                    else
-                    {
-                        PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                        PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
-                        try
-                        {
-                            publicationsMut.WaitOne();
-                            broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
-                            publications++;
-                            publicationsMut.ReleaseMutex();
-                        }
-                        catch (System.Net.Sockets.SocketException)
-                        {
-                            Console.WriteLine("can't connect to broker... waiting and trying again");
-                            System.Threading.Thread.Sleep(5000);
-                            try
-                            {
-                                publicationsMut.WaitOne();
-                                broker.ReceivePublication(publication, myURL, myTopic, myURL, publications);
-                                publications++;
-                                publicationsMut.ReleaseMutex();
-                            }
-                            catch (System.Net.Sockets.SocketException)
-                            {
-                                Console.WriteLine("can't connect to broker");
-                            }
-
-                        }
-
-                    }
-                }
-                else
-                {
+                } else {
                     System.Windows.Forms.MessageBox.Show("Please select a topic to publish to");
                 }
-            }
-            else { functions.Add(() => this.SendPublication(publication)); }
+            } else { functions.Add(() => this.SendPublication(publication)); }
         }
 
-        public void MultipleSendPublication(string publication, int sleepInterval, int numberofevents, string topicName)
+        public void MultipleSendPublication(string publication, int sleepInterval, int numberofevents)
         {
-            if (isFreeze == 0)
-            {
-                new Thread(() =>
-                {
+            if (isFreeze == 0) {
+                new Thread(() => {
                     int sequenceNumber = 0;
-                    for (int i = 0; i < numberofevents; i++)
-                    {
+                    for (int i = 0; i < numberofevents; i++) {
                         sequenceNumber += 1;
-                        if (topicName != null)
-                        {
-                            if (totalOrder)
-                            {
-                                int ticket;
-                                ticket = broker.GetTicket();
-                                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                                PM.UpdateEventLog("PubEvent", myURL, myURL, myTopic);
-                                try
-                                {
-                                    broker.ReceivePublicationTOTAL(publication + sequenceNumber, myURL, myTopic, myURL, ticket);
-                                }
-                                catch (System.Net.Sockets.SocketException)
-                                {
-                                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                                    System.Threading.Thread.Sleep(5000);
-                                    try
-                                    {
-                                        broker.ReceivePublicationTOTAL(publication + sequenceNumber, myURL, myTopic, myURL, ticket);
+                        if (myTopic != null) {
+                            if (totalOrder) {
+                                SendLogEvent();
+                                do {
+                                    try {
+                                        SendPublicationToBroker(publication, broker.GetTicket());
+                                    } catch (System.Net.Sockets.SocketException) {
+                                        // Broker is down. Waiting till he returns from doctor's appointment
+                                        Console.WriteLine("Can't connect to broker... waiting and trying again");
+                                        System.Threading.Thread.Sleep(5000);
                                     }
-                                    catch (System.Net.Sockets.SocketException)
-                                    {
-                                        Console.WriteLine("can't connect to broker");
+                                } while (true);
+                            } else {
+                                SendLogEvent();
+                                do {
+                                    try {
+                                        SendPublicationToBroker(publication);
+                                    } catch (System.Net.Sockets.SocketException) {
+                                        // Broker is down. Waiting till he returns from doctor's appointment
+                                        Console.WriteLine("Can't connect to broker... waiting and trying again");
+                                        System.Threading.Thread.Sleep(5000);
                                     }
-                                }
-                            }
-                            else
-                            {
-                                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                                PM.UpdateEventLog("PubEvent", myURL, myURL, topicName);
-                                try
-                                {
-                                    publicationsMut.WaitOne();
-                                    broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL, publications);
-                                    publications++;
-                                    publicationsMut.ReleaseMutex();
-                                }
-                                catch (System.Net.Sockets.SocketException)
-                                {
-                                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                                    System.Threading.Thread.Sleep(5000);
-                                    try
-                                    {
-                                        publicationsMut.WaitOne();
-                                        broker.ReceivePublication(publication + sequenceNumber, myURL, topicName, myURL, publications);
-                                        publications++;
-                                        publicationsMut.ReleaseMutex();
-                                    }
-                                    catch (System.Net.Sockets.SocketException)
-                                    {
-                                        Console.WriteLine("can't connect to broker");
-                                    }
-                                }
+                                } while (true);
                             }
                         }
                         System.Threading.Thread.Sleep(sleepInterval);
                     }
                 }).Start();
             }
-            else { functions.Add(() => this.SendPublication(publication)); }
+            else { functions.Add(() => this.MultipleSendPublication(publication, sleepInterval, numberofevents)); }
+        }
+
+        private void SendPublicationToBroker(string publication, int ticket = -1) {
+            publicationsMut.WaitOne();
+            if (ticket != -1) {
+                broker.ReceivePublicationTOTAL(publication, myURL, myTopic, myURL, ticket);
+            } else {
+                broker.ReceivePublication(publication, myURL, topicName, myURL, publications);
+            }
+            publications++;
+            publicationsMut.ReleaseMutex();
+        }
+
+        private void SendLogEvent() {
+            PMInterface puppetMaster = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+            puppetMaster.UpdateEventLog("PubEvent", myURL, myURL, topicName);
         }
 
         public void Kill()
@@ -282,18 +217,19 @@ namespace SESDAD
         {
             isFreeze = 1;
         }
+
         public void Unfreeze()
         {
-            isFreeze = 0;
             foreach (var function in functions)
             {
                 function.Invoke();
             }
             functions.Clear();
+            isFreeze = 0;
         }
 
-        //gives a status report on the node
-        //this includes saying its alive and the current publishing topic
+        // Gives a status report on the node
+        // This includes saying it's alive and what the current publishing topic is
         public void StatusUpdate()
         {
             if (isFreeze == 0)
