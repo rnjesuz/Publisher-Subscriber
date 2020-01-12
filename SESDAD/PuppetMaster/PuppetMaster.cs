@@ -332,7 +332,7 @@ namespace SESDAD
                     break;
                 case "Publisher":
                     //check if input if of type: Publisher p Publish n Ontopic t Interval x
-                    if (inputParsed.ElementAt(2).Equals("Publish") && inputParsed.ElementAt(4).Equals("Ontopic") && inputParsed.ElementAt(6).Equals("Interval"))
+                    if (inputParsed.ElementAt(2).Equals("Publish") && inputParsed.ElementAt(4).Equals("Ontopic") && inputParsed.ElementAt(6).Equals("Interval") && inputParsed.Count == 7)
                     {
                         processname = inputParsed.ElementAt(1);
                         topicname = inputParsed.ElementAt(5);
@@ -340,16 +340,29 @@ namespace SESDAD
                         sleepInterval = Int32.Parse(inputParsed.ElementAt(7));
                         try {
                             string pubName = publisherTable[processname];
-                            remotePM.SendPublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
+                            remotePM.SendMultiplePublishOrder(pubName, processname, topicname, numberofevents, sleepInterval);
                             Console.WriteLine("Publishing Done");
                         }
                         catch(KeyNotFoundException)
                         {
                             Console.WriteLine("There is no publisher with that name");
                         }
-                    }
-                    else
+                    } else if (inputParsed.ElementAt(2).Equals("Ontopic") && inputParsed.Count == 4)
+                    {
+                        processname = inputParsed.ElementAt(1);
+                        topicname = inputParsed.ElementAt(2);
+                        try {
+                            string pubName = publisherTable[processname];
+                            remotePM.SendPublishOrder(pubName, processname, topicname);
+                            Console.WriteLine("Publishing Done");
+                        }
+                        catch(KeyNotFoundException)
+                        {
+                            Console.WriteLine("There is no publisher with that name");
+                        }
+                    } else {
                         Console.WriteLine("Publisher command incorrectly formated");
+                    }
                     break;
                 case "Status":
                     remotePM.StatusUpdate();
@@ -560,11 +573,18 @@ namespace SESDAD
             sub.RemoveSubscriptionRemote(topic);
         }
 
-        public void SendPublishOrder(string pubURL, string processName, string topicname, int numberofevents, int sleepInterval)
+        public void SendPublishOrder(string pubURL, string processName, string topicname)
         {
             PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pubURL);
             pub.ChangeTopic(topicname);
-            pub.MultipleSendPublication(topicname +": Publisher: " + processName + "; event ", sleepInterval, numberofevents, topicname);
+            pub.SendPublication(topicname +": Publisher: " + processName + "; event ");
+        }
+
+        public void SendMultiplePublishOrder(string pubURL, string processName, string topicname, int numberofevents, int sleepInterval)
+        {
+            PublisherInterface pub = (PublisherInterface)Activator.GetObject(typeof(PublisherInterface), pubURL);
+            pub.ChangeTopic(topicname);
+            pub.MultipleSendPublication(topicname +": Publisher: " + processName + "; event ", sleepInterval, numberofevents);
         }
 
         public void KillBroker(string URL)
