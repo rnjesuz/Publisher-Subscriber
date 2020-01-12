@@ -564,13 +564,13 @@ namespace SESDAD
         public void SendSubscribeOrder(String subURL, string topic)
         {
             SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
-            sub.AddSubscriptionRemote(topic);
+            sub.AddSubscription(topic);
         }
 
         public void SendUnsubscribeOrder(String subURL, string topic)
         {
             SubscriberInterface sub = (SubscriberInterface)Activator.GetObject(typeof(SubscriberInterface), subURL);
-            sub.RemoveSubscriptionRemote(topic);
+            sub.RemoveSubscription(topic);
         }
 
         public void SendPublishOrder(string pubURL, string processName, string topicname)

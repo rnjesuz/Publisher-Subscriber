@@ -15,11 +15,6 @@ namespace SESDAD
 {
     public class Subscriber
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        /// 
-
         internal static BrokerInterface broker;
         internal static SubscriberForm form;
         internal static RemoteSubscriber rs;
@@ -28,21 +23,24 @@ namespace SESDAD
         internal static int myPort;
         private string processname;
 
+        public Subscriber(string name, string subURL, string brkURL)
+        {
+            myURL = subURL;
+            brokerURL = brkURL;
+            myPort = parseURL(subURL);
+            processname = name;
+        }
+
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
         [STAThread]
         static void Main(string[] args)
         {
-            /*//TODO remove after PuppetMaster is implemented
-            myURL = "tcp://localhost:8090/sub";
-            //TODO remove after PuppetMaster is implemented
-            myPort = 8090;*/
-
             Subscriber subscriber = new Subscriber(args[0], args[1], args[2]);
 
             TcpChannel channel = new TcpChannel(myPort);
             ChannelServices.RegisterChannel(channel, false);
-
-            //TODO remove after PuppetMaster is implemented
-            //brokerURL = "tcp://localhost:8086/broker";            
 
             RemotingConfiguration.RegisterWellKnownServiceType(typeof(RemoteSubscriber), "sub", WellKnownObjectMode.Singleton);
             subscriber.ConnectToBroker();
@@ -53,24 +51,12 @@ namespace SESDAD
             Application.Run(form);
         }
 
-        public Subscriber(string name, string subURL, string brkURL)
-        {
-            myURL = subURL;
-            brokerURL = brkURL;
-            myPort = parseURL(subURL);
-            processname = name;
-        }
-
         public void ConnectToBroker()
         {
             broker = (BrokerInterface)Activator.GetObject(typeof(BrokerInterface), brokerURL);
-
-            try
-            {
-                broker.ConnectSubscriber(myURL);
-            }
-            catch (SocketException)
-            {
+            try {
+                broker.ConnectSubscrib                                                  er(myURL);
+            } catch (SocketException) {
                 System.Console.WriteLine("Could not locate Broker");
             }
         }
@@ -89,82 +75,89 @@ namespace SESDAD
     delegate void DelegateAddSubscriptionRemote(string topic);
     delegate void DelegateRemoveSubscriptionRemote(string topic);
 
-
     public class RemoteSubscriber : MarshalByRefObject, SubscriberInterface
     {
         SubscriberForm form = Subscriber.form;
         private BrokerInterface broker = Subscriber.broker;
         private string myURL = Subscriber.myURL;
 
-        //bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
+        // bool to tell if process is freezed. 0 = NOT FREEZED; 1 = FREEZED
         private int isFreeze = 0;
 
-        //List of functions to call when the process is unfreezed
+        // List of functions to call when the process is unfreezed
         private List<Action> functions = new List<Action>();
 
         public void ReceivePublication(string publication, string pubURL, string pubTopic)
         {
-            if (isFreeze == 0)
-            {
-                Console.WriteLine("received publication for my subscription");
-                PMInterface PM = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
-                PM.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
+            if (isFreeze == 0) {
+                Console.WriteLine("Received publication for my subscription");
+                PMInterface puppetMaster = (PMInterface)Activator.GetObject(typeof(PMInterface), "tcp://localhost:8069/puppetmaster");
+                puppetMaster.UpdateEventLog("SubEvent", myURL, pubURL, pubTopic);
 
                 form.Invoke(new DelegateReceivePublication(form.UpdatePublication), publication);
 
-                Console.WriteLine("finished receiving publication for my subscription");
+                Console.WriteLine("Finished receiving publication for my subscription");
+            } else {
+                functions.Add(() => this.ReceivePublication(publication, pubURL,  pubTopic));
             }
-            else { functions.Add(() => this.ReceivePublication(publication, pubURL,  pubTopic)); }
         }
 
+        // Invoked through remote call
         public void AddSubscription(string topic)
         {
-            if (isFreeze == 0)
-            {
-                try
-                {
-                    broker.AddSubscription(myURL, topic);
-                }
-                catch (SocketException)
-                {
-                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                    System.Threading.Thread.Sleep(5000);
-                    try
-                    {
-                        broker.AddSubscription(myURL, topic);
-                    }
-                    catch (System.Net.Sockets.SocketException)
-                    {
-                        Console.WriteLine("can't connect to broker");
-                    }
-                }
+            if (isFreeze == 0) {
+                AddSubscriptionLocal(topic);
+                form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
             }
-            else { functions.Add(() => this.AddSubscription(topic)); }
+            else {
+                functions.Add(() => this.AddSubscription(topic)); 
+            }
         }
 
+        // Invoked by the SubscriberForm
+        public void AddSubscriptionLocal(string topic)
+        {
+            if (isFreeze == 0) {
+                do {
+                    try {
+                        broker.AddSubscription(myURL, topic);
+                    } catch (SocketException) {
+                        Console.WriteLine("Can't connect to broker... waiting and trying again");
+                        System.Threading.Thread.Sleep(5000);
+                    }
+                } while (true);
+            }
+            else {
+                functions.Add(() => this.AddSubscriptionLocal(topic));
+            }
+        }
+        
+        // Invoked through remote call
         public void RemoveSubscription(string topic)
         {
-            if (isFreeze == 0)
-            {
-                try
-                {
-                    broker.RemoveSubscription(myURL, topic);
-                }
-                catch (SocketException)
-                {
-                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                    System.Threading.Thread.Sleep(5000);
-                    try
-                    {
-                        broker.RemoveSubscription(myURL, topic);
-                    }
-                    catch (System.Net.Sockets.SocketException)
-                    {
-                        Console.WriteLine("can't connect to broker");
-                    }
-                }
+            if (isFreeze == 0) {
+                RemoveSubscriptionLocal(topic);
+                form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);  
             }
-            else { functions.Add(() => this.RemoveSubscription(topic)); }
+            else {
+                functions.Add(() => this.RemoveSubscription(topic));
+            }
+        }
+
+        // Invoked by the SubscriberForm
+        public void RemoveSubscriptionLocal(string topic)
+        {
+            if (isFreeze == 0) {
+                do {
+                    try {
+                        broker.RemoveSubscription(myURL, topic);
+                    } catch (SocketException) {
+                        Console.WriteLine("Can't connect to broker... waiting and trying again");
+                        System.Threading.Thread.Sleep(5000);
+                    }
+                } while (true);
+            }
+            else { functions.Add(() => this.RemoveSubscriptionLocal(topic)); }
         }
 
         public void Kill()
@@ -182,83 +175,29 @@ namespace SESDAD
         }
         public void Unfreeze()
         {
-            isFreeze = 0;
             foreach (var function in functions)
             {
                 function.Invoke();
             }
             functions.Clear();
+            isFreeze = 0;
         }
 
-        public void AddSubscriptionRemote(string topic)
-        {
-            if (isFreeze == 0)
-            {
-                try
-                {
-                    broker.AddSubscription(myURL, topic);
-                    form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
-                }
-                catch (SocketException)
-                {
-                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                    System.Threading.Thread.Sleep(5000);
-                    try
-                    {
-                        broker.AddSubscription(myURL, topic);
-                        form.Invoke(new DelegateAddSubscriptionRemote(form.AddTopic), topic);
-                    }
-                    catch (System.Net.Sockets.SocketException)
-                    {
-                        Console.WriteLine("can't connect to broker");
-                    }
-                }
-            }
-            else { functions.Add(() => this.AddSubscriptionRemote(topic)); }
-        }
-
-        public void RemoveSubscriptionRemote(string topic)
-        {
-            if (isFreeze == 0)
-            {
-                try
-                {
-                    broker.RemoveSubscription(myURL, topic);
-                    form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
-                }
-                catch (SocketException)
-                {
-                    Console.WriteLine("can't connect to broker... waiting and trying again");
-                    System.Threading.Thread.Sleep(5000);
-                    try
-                    {
-                        broker.RemoveSubscription(myURL, topic);
-                        form.Invoke(new DelegateRemoveSubscriptionRemote(form.RemoveTopic), topic);
-                    }
-                    catch (System.Net.Sockets.SocketException)
-                    {
-                        Console.WriteLine("can't connect to broker");
-                    }
-                }
-            }
-            else { functions.Add(() => this.RemoveSubscriptionRemote(topic)); }
-        }
-
-        //gives a status report on the node
-        //this includes saying its alive and the current subscriptions
+        // Gives a status report on the node
+        // This includes saying its alive and what its current subscriptions are
         public void StatusUpdate()
         {
-            if (isFreeze == 0)
-            {
+            if (isFreeze == 0) {
                 Console.WriteLine("[Subscriber Status]");
                 Console.WriteLine("I'm alive at: " + myURL);
                 Console.WriteLine("My subscriptions are:");
-                foreach (string topic in form.subscriptions)
-                {
+                foreach (string topic in form.subscriptions) {
                     Console.WriteLine(topic);
                 }
             }
-            else { functions.Add(() => this.StatusUpdate()); }
+            else {
+                functions.Add(() => this.StatusUpdate()); 
+            }
         }
     }
 

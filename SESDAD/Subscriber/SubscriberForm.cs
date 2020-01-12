@@ -38,7 +38,7 @@ namespace SESDAD
             {
                 subscriptions.Add(topic);
                 TopicListBox.Text = string.Join("\r\n", subscriptions);
-                rs.AddSubscription(topic);
+                rs.AddSubscriptionLocal(topic);
             }
         }
 
@@ -65,7 +65,7 @@ namespace SESDAD
             {
                 subscriptions.Remove(topic);
                 TopicListBox.Text = string.Join("\r\n", subscriptions);
-                rs.RemoveSubscription(topic);
+                rs.RemoveSubscriptionLocal(topic);
             }
         }
 
