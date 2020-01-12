@@ -78,9 +78,9 @@ Process subscriber1 Is subscriber On site0 URL tcp://localhost:3336/sub
 
 # PuppetMaster
 The PuppetMaster can send the following commands to the other processes:
-* **Subscriber** *processname* **Subscribe** *topicname*
+* **Subscriber** *processname* **Subscribe** *topicname*</br>
 This command is used to force asubscriber to subscribe to the given topic.
-* **Subscriber** *processname* **Unsubscribe** *topicname*
+* **Subscriber** *processname* **Unsubscribe** *topicname*</br>
 This command is used to force a subscriber to unsubscribe to the given topic.
 * **Publisher** *processname* **Publish** *numberofevents* **Ontopic** *topicname* **Interval** *x_ms*</br>
 This command is used to force a publisher to produce a sequence of *numberofevents* on a given topic. The publisher should sleep *x* milliseconds between two consecutive events. The content of these events should be a string that includes the name of the publisher and a sequence number.
